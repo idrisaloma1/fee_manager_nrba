@@ -1,0 +1,38 @@
+{
+  "name": "infolab-fees-manager",
+  "version": "1.0.0",
+  "description": "School Fees Collection Manager - school-specific build",
+  "main": "electron-main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:win": "electron-builder --win"
+  },
+  "dependencies": {
+    "nodemailer": "^10.0.10"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.infolab.feesmanager",
+    "productName": "School Fees Manager",
+    "copyright": "Copyright 2026 Infolab Technology Service Ltd",
+    "directories": { "output": "dist-exe" },
+    "files": [
+      "electron-main.js",
+      "preload.js",
+      "client/**/*"
+    ],
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "School Fees Manager"
+    }
+  }
+}

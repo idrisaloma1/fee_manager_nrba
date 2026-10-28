@@ -1,0 +1,2666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>School Fees Collection Manager</title>
+<script src="vendor/jspdf.umd.min.js"></script>
+<script src="vendor/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Syne:wght@700;800&display=swap');
+
+:root {
+  --bg: #080c14;
+  --surface: #0e1420;
+  --surface2: #131926;
+  --surface3: #1a2235;
+  --border: #1e2d45;
+  --border2: #243552;
+  --accent: #00d4ff;
+  --accent2: #0099cc;
+  --green: #00e5a0;
+  --green2: #00b87a;
+  --red: #ff4d6a;
+  --red2: #cc2244;
+  --yellow: #ffd166;
+  --purple: #a78bfa;
+  --text: #e8f0fe;
+  --text2: #8899bb;
+  --text3: #4a5a7a;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'DM Sans', sans-serif;
+  --display: 'Syne', sans-serif;
+  --radius: 12px;
+  --shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; display: flex; overflow: hidden; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--surface); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 99px; }
+
+#sidebar { width: 230px; min-width: 230px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; height: 100vh; position: relative; z-index: 10; }
+.sidebar-brand { padding: 24px 20px 20px; border-bottom: 1px solid var(--border); }
+.brand-icon { width: 38px; height: 38px; background: linear-gradient(135deg, var(--accent), var(--purple)); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; margin-bottom: 10px; }
+.brand-name { font-family: var(--display); font-size: 13px; font-weight: 800; color: var(--text); line-height: 1.2; letter-spacing: 0.3px; }
+.brand-sub { font-size: 10px; color: var(--text3); margin-top: 2px; font-family: var(--mono); }
+.sidebar-school { padding: 14px 20px; border-bottom: 1px solid var(--border); }
+.school-label { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+.school-name-display { font-size: 12px; font-weight: 600; color: var(--accent); cursor: pointer; word-break: break-word; }
+.school-name-display:hover { text-decoration: underline; }
+
+/* Term selector in sidebar */
+.sidebar-term { padding: 10px 20px; border-bottom: 1px solid var(--border); background: rgba(0,212,255,0.04); }
+.term-label { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; font-family: var(--mono); }
+.term-selector { display: flex; align-items: center; gap: 6px; }
+.term-selector select { background: var(--surface3); border: 1px solid var(--border2); border-radius: 6px; padding: 5px 8px; color: var(--accent); font-family: var(--mono); font-size: 11px; font-weight: 600; outline: none; flex: 1; cursor: pointer; }
+.term-selector select:focus { border-color: var(--accent); }
+.term-badge { font-size: 9px; font-family: var(--mono); color: var(--green); background: rgba(0,229,160,0.1); border: 1px solid rgba(0,229,160,0.2); padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
+.term-badge.readonly { color: var(--yellow); background: rgba(255,209,102,0.1); border-color: rgba(255,209,102,0.2); }
+
+.sidebar-nav { padding: 12px 10px; flex: 1; overflow-y: auto; }
+.nav-section-label { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; padding: 8px 10px 4px; font-family: var(--mono); }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 2px; transition: all 0.15s; }
+.nav-item:hover { background: var(--surface2); color: var(--text); }
+.nav-item.active { background: rgba(0,212,255,0.1); color: var(--accent); font-weight: 600; }
+.nav-item .ni { font-size: 15px; width: 20px; text-align: center; }
+.sidebar-footer { padding: 14px 20px; border-top: 1px solid var(--border); font-size: 10px; color: var(--text3); font-family: var(--mono); }
+
+#main { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+.topbar { display: flex; align-items: center; justify-content: space-between; padding: 0 28px; height: 60px; min-height: 60px; border-bottom: 1px solid var(--border); background: var(--surface); }
+.topbar-title { font-family: var(--display); font-size: 16px; font-weight: 700; color: var(--text); }
+.topbar-actions { display: flex; gap: 8px; align-items: center; }
+#content { flex: 1; overflow-y: auto; padding: 24px 28px; }
+
+.btn { padding: 8px 16px; border-radius: 8px; border: none; font-family: var(--sans); font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px; }
+.btn-primary { background: var(--accent); color: #000; }
+.btn-primary:hover { background: #33ddff; }
+.btn-green { background: var(--green); color: #000; }
+.btn-green:hover { background: #33eebb; }
+.btn-red { background: var(--red); color: #fff; }
+.btn-red:hover { background: #ff6680; }
+.btn-ghost { background: var(--surface3); color: var(--text2); border: 1px solid var(--border2); }
+.btn-ghost:hover { color: var(--text); border-color: var(--text3); }
+.btn-yellow { background: var(--yellow); color: #000; }
+.btn-yellow:hover { background: #ffe080; }
+.btn-orange { background: #ff8c42; color: #000; }
+.btn-orange:hover { background: #ffa060; }
+.btn-sm { padding: 5px 10px; font-size: 11px; }
+
+.card { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 18px; }
+.card-head { font-family: var(--display); font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.stat-card { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; position: relative; overflow: hidden; transition: border-color 0.2s; }
+.stat-card:hover { border-color: var(--border2); }
+.stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+.stat-card.blue::before { background: linear-gradient(90deg, var(--accent), var(--purple)); }
+.stat-card.green::before { background: linear-gradient(90deg, var(--green), var(--accent)); }
+.stat-card.red::before { background: linear-gradient(90deg, var(--red), var(--yellow)); }
+.stat-card.yellow::before { background: linear-gradient(90deg, var(--yellow), var(--green)); }
+.stat-card.purple::before { background: linear-gradient(90deg, var(--purple), var(--red)); }
+.stat-icon { font-size: 22px; margin-bottom: 10px; }
+.stat-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 5px; font-family: var(--mono); }
+.stat-value { font-family: var(--display); font-size: 22px; font-weight: 800; color: var(--text); line-height: 1; }
+.stat-sub { font-size: 10px; color: var(--text3); margin-top: 5px; }
+
+.progress-wrap { background: var(--surface3); border-radius: 99px; height: 6px; overflow: hidden; margin-top: 8px; }
+.progress-bar { height: 100%; border-radius: 99px; transition: width 0.5s ease; }
+.pb-green { background: linear-gradient(90deg, var(--green2), var(--green)); }
+.pb-blue { background: linear-gradient(90deg, var(--accent2), var(--accent)); }
+.pb-red { background: linear-gradient(90deg, var(--red2), var(--red)); }
+.pb-yellow { background: linear-gradient(90deg, #cc8800, var(--yellow)); }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+.fg { display: flex; flex-direction: column; gap: 5px; }
+label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.6px; font-family: var(--mono); }
+input, select, textarea { background: var(--surface3); border: 1px solid var(--border2); border-radius: 8px; padding: 9px 12px; color: var(--text); font-family: var(--sans); font-size: 12px; outline: none; width: 100%; transition: border-color 0.15s; }
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+select option { background: var(--surface2); }
+
+.tbl-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+thead tr { background: var(--surface3); }
+th { padding: 10px 14px; text-align: left; font-size: 9px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text3); font-family: var(--mono); font-weight: 600; border-bottom: 1px solid var(--border); white-space: nowrap; }
+td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text2); vertical-align: middle; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: var(--surface3); color: var(--text); }
+
+.badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 10px; font-weight: 600; font-family: var(--mono); }
+.badge-green { background: rgba(0,229,160,0.15); color: var(--green); }
+.badge-red { background: rgba(255,77,106,0.15); color: var(--red); }
+.badge-yellow { background: rgba(255,209,102,0.15); color: var(--yellow); }
+.badge-blue { background: rgba(0,212,255,0.15); color: var(--accent); }
+.badge-purple { background: rgba(167,139,250,0.15); color: var(--purple); }
+.badge-orange { background: rgba(255,140,66,0.15); color: #ff8c42; }
+
+.tabs { display: flex; gap: 4px; margin-bottom: 18px; background: var(--surface2); border-radius: 10px; padding: 4px; border: 1px solid var(--border); }
+.tab { flex: 1; padding: 8px 12px; border-radius: 7px; font-size: 11px; font-weight: 600; cursor: pointer; color: var(--text3); text-align: center; transition: all 0.15s; }
+.tab.active { background: var(--surface3); color: var(--text); }
+.tab:hover:not(.active) { color: var(--text2); }
+
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); }
+.modal { background: var(--surface2); border: 1px solid var(--border2); border-radius: 16px; padding: 28px; width: 520px; max-width: 95vw; max-height: 88vh; overflow-y: auto; box-shadow: var(--shadow); }
+.modal-head { font-family: var(--display); font-size: 16px; font-weight: 800; color: var(--text); margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; }
+.modal-close { cursor: pointer; color: var(--text3); font-size: 20px; line-height: 1; }
+.modal-close:hover { color: var(--text); }
+.modal-actions { display: flex; gap: 8px; margin-top: 20px; justify-content: flex-end; }
+
+.alert { padding: 10px 14px; border-radius: 8px; font-size: 11px; margin-bottom: 14px; }
+.alert-info { background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.2); color: var(--accent); }
+.alert-warn { background: rgba(255,209,102,0.1); border: 1px solid rgba(255,209,102,0.2); color: var(--yellow); }
+.alert-success { background: rgba(0,229,160,0.1); border: 1px solid rgba(0,229,160,0.2); color: var(--green); }
+.alert-orange { background: rgba(255,140,66,0.1); border: 1px solid rgba(255,140,66,0.2); color: #ff8c42; }
+
+.chart-bars { display: flex; align-items: flex-end; gap: 8px; height: 180px; padding-bottom: 30px; position: relative; }
+.chart-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+.chart-bar { width: 100%; border-radius: 6px 6px 0 0; transition: height 0.6s cubic-bezier(0.34,1.56,0.64,1); position: relative; min-height: 4px; cursor: pointer; }
+.chart-bar:hover { filter: brightness(1.2); }
+.chart-bar-label { font-size: 9px; color: var(--text3); text-align: center; font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.chart-bar-val { font-size: 9px; color: var(--text2); font-family: var(--mono); position: absolute; top: -16px; left: 50%; transform: translateX(-50%); white-space: nowrap; }
+.chart-legend { display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--text3); }
+.legend-dot { width: 8px; height: 8px; border-radius: 2px; }
+
+.empty { text-align: center; padding: 40px 20px; color: var(--text3); }
+.empty-icon { font-size: 36px; margin-bottom: 10px; }
+.empty-text { font-size: 12px; }
+.divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+.inst-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+.inst-row input { flex: 1; }
+.ptype-pill { display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: 10px; font-weight: 700; font-family: var(--mono); background: rgba(167,139,250,0.15); color: var(--purple); }
+
+/* Carry-forward highlight */
+.cf-row { background: rgba(255,209,102,0.05) !important; }
+.cf-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 99px; font-size: 10px; font-weight: 600; font-family: var(--mono); background: rgba(255,140,66,0.15); color: #ff8c42; }
+
+/* Term history card */
+.term-history-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: border-color 0.15s; }
+.term-history-card:hover { border-color: var(--border2); }
+.term-history-card.current { border-color: var(--accent); background: rgba(0,212,255,0.05); }
+
+.class-filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; }
+.class-filter-btn { padding: 6px 14px; border-radius: 99px; border: 1px solid var(--border2); background: var(--surface2); color: var(--text2); font-size: 11px; font-weight: 600; font-family: var(--mono); cursor: pointer; transition: all 0.15s; }
+.class-filter-btn:hover { border-color: var(--accent); color: var(--accent); }
+.class-filter-btn.active { background: rgba(0,212,255,0.12); border-color: var(--accent); color: var(--accent); }
+
+@media (max-width: 900px) {
+  #sidebar { width: 54px; min-width: 54px; }
+  .brand-name, .brand-sub, .nav-item span, .sidebar-footer, .sidebar-school, .nav-section-label, .sidebar-term { display: none; }
+  .nav-item { justify-content: center; padding: 12px; }
+  #content { padding: 16px; }
+}
+
+.receipt-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 2000; backdrop-filter: blur(6px); }
+.receipt-box { background: #fff; color: #111; border-radius: 12px; width: 420px; max-width: 96vw; box-shadow: 0 20px 60px rgba(0,0,0,0.5); overflow: hidden; font-family: 'DM Sans', sans-serif; }
+.receipt-header { background: linear-gradient(135deg, #0a0f1e 0%, #0d2137 100%); color: #fff; padding: 22px 28px 18px; text-align: center; }
+.receipt-header .rh-school { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 800; letter-spacing: 0.5px; margin-bottom: 3px; }
+.receipt-header .rh-sub { font-size: 10px; color: rgba(255,255,255,0.55); font-family: 'JetBrains Mono', monospace; letter-spacing: 0.5px; }
+.receipt-header .rh-title { margin-top: 14px; display: inline-block; background: rgba(0,212,255,0.15); border: 1px solid rgba(0,212,255,0.4); color: #00d4ff; padding: 4px 18px; border-radius: 99px; font-size: 11px; font-weight: 700; font-family: 'JetBrains Mono', monospace; letter-spacing: 1px; text-transform: uppercase; }
+.receipt-body { padding: 22px 28px; }
+.receipt-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 8px 0; border-bottom: 1px dashed #e8e8e8; font-size: 12px; }
+.receipt-row:last-child { border-bottom: none; }
+.receipt-row .rl { color: #666; font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; font-family: 'JetBrains Mono', monospace; }
+.receipt-row .rv { font-weight: 600; color: #111; text-align: right; max-width: 55%; }
+.receipt-amount-block { background: linear-gradient(135deg, #f0fff8, #e8f8ff); border: 1px solid #b2f0da; border-radius: 10px; padding: 16px; margin: 14px 0; text-align: center; }
+.receipt-amount-block .ram-label { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; font-family: 'JetBrains Mono', monospace; }
+.receipt-amount-block .ram-value { font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 800; color: #00a36b; }
+.receipt-amount-block .ram-bal { font-size: 11px; color: #888; margin-top: 4px; }
+.receipt-footer { background: #f7f8fa; border-top: 1px dashed #ddd; padding: 12px 28px; text-align: center; font-size: 10px; color: #aaa; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.3px; }
+.receipt-footer .rf-watermark { font-size: 8px; margin-top: 4px; opacity: 0.5; }
+.receipt-no-tag { font-size: 9px; font-family: 'JetBrains Mono', monospace; color: rgba(255,255,255,0.4); margin-top: 6px; }
+
+@media print {
+  body > * { display: none !important; }
+  .receipt-overlay { position: static !important; background: none !important; display: block !important; backdrop-filter: none !important; }
+  .receipt-box { box-shadow: none; width: 100%; border-radius: 0; }
+  .receipt-actions { display: none !important; }
+  .receipt-overlay .receipt-box { display: block !important; }
+}
+
+/* TRIAL BANNER */
+#trialBanner { display:none; align-items:center; justify-content:space-between; gap:12px; padding:9px 20px; font-size:12px; font-family:var(--mono); flex-shrink:0; flex-wrap:wrap; }
+#trialBanner.trial-ok       { display:flex !important; background:rgba(0,229,160,0.08); border-bottom:1px solid rgba(0,229,160,0.2); color:var(--green); }
+#trialBanner.trial-warn     { display:flex !important; background:rgba(255,209,102,0.1); border-bottom:1px solid rgba(255,209,102,0.25); color:var(--yellow); }
+#trialBanner.trial-critical { display:flex !important; background:rgba(255,77,106,0.1); border-bottom:1px solid rgba(255,77,106,0.25); color:var(--red); }
+#trialBanner .tb-left { display:flex; align-items:center; gap:8px; }
+#trialBanner .tb-btn  { background:var(--accent); color:#000; border:none; border-radius:6px; padding:5px 12px; font-size:11px; font-weight:700; cursor:pointer; font-family:var(--sans); white-space:nowrap; }
+</style>
+</head>
+<body>
+
+<!-- ACTIVATION GATE — shown until a valid key is entered, then hidden permanently
+     for this installation (the whole app sits behind #appRoot, hidden until activated) -->
+<div id="activateGate" style="position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--surface2);border:1px solid var(--border);border-radius:16px;padding:36px;max-width:420px;width:100%;">
+    <div style="text-align:center;margin-bottom:6px;">
+      <div style="width:48px;height:48px;background:linear-gradient(135deg, var(--accent), var(--purple));border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 14px;">💰</div>
+      <div style="font-family:var(--display);font-size:18px;font-weight:800;">Fees Collection Manager</div>
+    </div>
+    <p style="font-size:13px;color:var(--text2);text-align:center;margin:10px 0 24px;line-height:1.6;">This software needs to be activated before use. Enter the activation key you received from Infolab Technology Service.</p>
+    <div id="activateError" style="display:none;color:var(--red);font-size:12.5px;text-align:center;margin-bottom:14px;"></div>
+    <div style="margin-bottom:14px;">
+      <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">School Name</label>
+      <input id="activateSchoolName" placeholder="Your school's name" style="width:100%;background:var(--surface3);border:1px solid var(--border2);color:var(--text);padding:11px 13px;border-radius:8px;font-size:14px;font-family:var(--sans);">
+    </div>
+    <div style="margin-bottom:18px;">
+      <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Activation Key</label>
+      <input id="activateKey" placeholder="e.g. IFLB-FEE-XXXX-XXXX or IFLB-TRM-XXXX-XXXX" style="width:100%;background:var(--surface3);border:1px solid var(--border2);color:var(--text);padding:11px 13px;border-radius:8px;font-size:14px;font-family:var(--mono);text-transform:uppercase;">
+    </div>
+    <button onclick="activateApp()" style="width:100%;background:var(--accent);color:#000;border:none;border-radius:8px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--sans);">Activate</button>
+    <p style="font-size:12px;color:var(--text3);text-align:center;margin-top:16px;">Don't have a key? Contact Infolab Technology Service to purchase.</p>
+  </div>
+</div>
+
+<div id="appRoot" style="display:none">
+
+<div id="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-icon">💰</div>
+    <div class="brand-name">Fees Collection<br>Manager</div>
+    <div class="brand-sub">v2.0.0</div>
+  </div>
+  <div class="sidebar-school">
+    <div class="school-label">School</div>
+    <div class="school-name-display" onclick="openSettings()" title="Click to edit school settings" id="schoolNameDisplay">My School</div>
+  </div>
+  <!-- TERM SELECTOR -->
+  <div class="sidebar-term">
+    <div class="term-label">Active View</div>
+    <div class="term-selector">
+      <select id="termViewSelect" onchange="switchTermView(this.value)"></select>
+      <span id="termViewBadge" class="term-badge">LIVE</span>
+    </div>
+  </div>
+  <div class="sidebar-nav">
+    <div class="nav-section-label">Main</div>
+    <div class="nav-item active" onclick="navigate('dashboard')" id="nav-dashboard"><span class="ni">📊</span><span>Dashboard</span></div>
+    <div class="nav-item" onclick="navigate('students')" id="nav-students"><span class="ni">👨‍🎓</span><span>Students</span></div>
+    <div class="nav-item" onclick="navigate('payments')" id="nav-payments"><span class="ni">💳</span><span>Payments</span></div>
+    <div class="nav-item" onclick="navigate('other-payments')" id="nav-other-payments"><span class="ni">📦</span><span>Other Payments</span></div>
+    <div class="nav-section-label">Analysis</div>
+    <div class="nav-item" onclick="navigate('class-analysis')" id="nav-class-analysis"><span class="ni">🏫</span><span>Class Analysis</span></div>
+    <div class="nav-item" onclick="navigate('debtors')" id="nav-debtors"><span class="ni">⚠️</span><span>Debtors</span></div>
+    <div class="nav-section-label">Term</div>
+    <div class="nav-item" onclick="navigate('term-history')" id="nav-term-history"><span class="ni">📆</span><span>Term History</span></div>
+    <div class="nav-section-label">Setup</div>
+    <div class="nav-item" onclick="navigate('fee-setup')" id="nav-fee-setup"><span class="ni">🧾</span><span>Fee Setup</span></div>
+    <div class="nav-item" onclick="navigate('classes')" id="nav-classes"><span class="ni">🗂️</span><span>Classes & Fees</span></div>
+    <div class="nav-item" onclick="navigate('backup')" id="nav-backup"><span class="ni">💾</span><span>Backup & Restore</span></div>
+    <div class="nav-item" onclick="openSettings()" id="nav-settings"><span class="ni">⚙️</span><span>Settings</span></div>
+  </div>
+  <div class="sidebar-footer">
+    FCM © 2025
+    <div id="smsStatusBadge" style="margin-top:5px;font-size:9px;"></div>
+    <div id="backupBadge" style="margin-top:4px;font-size:9px;"></div>
+  </div>
+</div>
+
+<div id="main">
+  <div class="topbar">
+    <div class="topbar-title" id="pageTitle">Dashboard</div>
+    <div class="topbar-actions" id="topbarActions"></div>
+  </div>
+  <div id="trialBanner"><div class="tb-left"><span id="trialIcon"></span>&nbsp;<span id="trialMsg"></span></div><button class="tb-btn" onclick="openActivationFromTrial()">🔑 Activate Full Version</button></div>
+<div id="content"></div>
+</div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════
+//  LICENSE ACTIVATION
+//  No server here — this is a fully offline, client-only app, so the
+//  check lives entirely in localStorage. Same threat model as the CBT:
+//  a reasonable deterrent against casual copying, not hardened DRM.
+// ═══════════════════════════════════════
+var VALID_LICENSE_KEYS = [
+  'IFLB-FEE-9RJE-945H','IFLB-FEE-UCUG-TND5','IFLB-FEE-5NCU-VSQY',
+  'IFLB-FEE-P7F2-DUKZ','IFLB-FEE-W4F7-T86N','IFLB-FEE-YUS7-8MMC',
+  'IFLB-FEE-XHYM-8JQZ','IFLB-FEE-QQYA-8JN3','IFLB-FEE-FHKF-2CKW',
+  'IFLB-FEE-6TBP-YSTD','IFLB-FEE-SSX6-SDQY','IFLB-FEE-VZJX-MFPE',
+  'IFLB-FEE-BQP5-G5H3','IFLB-FEE-4267-2EDT','IFLB-FEE-HG3B-Q3EF',
+  'IFLB-FEE-WUR2-9MWR','IFLB-FEE-E8J7-7TUB','IFLB-FEE-QZ3J-JG59',
+  'IFLB-FEE-KQ4B-T28S','IFLB-FEE-5Z9R-SJ2R','IFLB-FEE-VSM3-MS33',
+  'IFLB-FEE-JFUD-CB9Z','IFLB-FEE-J7Y9-BRDH','IFLB-FEE-5DSC-D7PB','IFLB-FEE-QZFR-KASY'
+];
+// Plan 2 — Termly license: same activation flow, but expires 4 months after
+// activation instead of lasting forever. A different key prefix (TRM vs FEE)
+// makes the plan visually identifiable at a glance.
+var VALID_TERMLY_KEYS = [
+  'IFLB-TRM-HBTR-QJGF','IFLB-TRM-5CBF-PQBN','IFLB-TRM-4Q6T-AL5X',
+  'IFLB-TRM-TKPX-GF2G','IFLB-TRM-YYSC-7H2F','IFLB-TRM-UZNE-CQUF',
+  'IFLB-TRM-QG2T-7ZLZ','IFLB-TRM-YPTE-LRL7','IFLB-TRM-2TQW-DQCW',
+  'IFLB-TRM-3TEP-WP93','IFLB-TRM-7KSJ-RS53','IFLB-TRM-ZQJ9-FDHK',
+  'IFLB-TRM-L5E2-27SA','IFLB-TRM-HTXH-U5L7','IFLB-TRM-ASMG-VNKZ',
+  'IFLB-TRM-LAW9-BHZV','IFLB-TRM-RDRF-F9EJ','IFLB-TRM-J8LS-5PNV',
+  'IFLB-TRM-3Z66-HRQE','IFLB-TRM-XBQQ-AEDQ','IFLB-TRM-ECXE-RT9P',
+  'IFLB-TRM-J8R8-4NGG','IFLB-TRM-5Y54-7DGD','IFLB-TRM-3XGR-NN6J','IFLB-TRM-5MT7-RE6G'
+];
+var TERMLY_MONTHS = 4;
+var TRIAL_DAYS = 30;
+
+// Returns 'full' | 'termly' | null
+function getLicensePlan(key) {
+  if (!key) return null;
+  var k = key.trim().toUpperCase();
+  if (VALID_LICENSE_KEYS.indexOf(k) !== -1) return 'full';
+  if (VALID_TERMLY_KEYS.indexOf(k) !== -1) return 'termly';
+  return null;
+}
+function isValidLicenseKey(key) {
+  return getLicensePlan(key) !== null;
+}
+
+function isFullyActivated(){
+  try{
+    var l=JSON.parse(localStorage.getItem('fcm_license')||'null');
+    if(!l||!l.activated) return false;
+    if(l.plan==='termly' && l.expiresAt && new Date(l.expiresAt).getTime() < Date.now()) return false; // termly license lapsed
+    return true;
+  }catch(e){return false;}
+}
+function getLicenseInfo(){
+  try{ return JSON.parse(localStorage.getItem('fcm_license')||'null'); }catch(e){ return null; }
+}
+function getTermlyDaysRemaining(){
+  var l=getLicenseInfo();
+  if(!l||l.plan!=='termly'||!l.expiresAt) return 0;
+  return Math.max(0,Math.ceil((new Date(l.expiresAt).getTime()-Date.now())/86400000));
+}
+function getDaysRemaining(){
+  try{
+    var t=JSON.parse(localStorage.getItem('fcm_trial')||'null');
+    if(!t||!t.startedAt) return TRIAL_DAYS;
+    return Math.max(0,TRIAL_DAYS-Math.floor((Date.now()-new Date(t.startedAt).getTime())/86400000));
+  }catch(e){return TRIAL_DAYS;}
+}
+function startTrialIfNew(){
+  if(!localStorage.getItem('fcm_trial'))
+    localStorage.setItem('fcm_trial',JSON.stringify({startedAt:new Date().toISOString()}));
+}
+function updateTrialBanner(){
+  var banner=document.getElementById('trialBanner');
+  if(!banner) return;
+  if(isFullyActivated()){
+    var l=getLicenseInfo();
+    if(l&&l.plan==='termly'){
+      var td=getTermlyDaysRemaining();
+      document.getElementById('trialIcon').textContent=td>14?'📅':td>0?'⚠️':'🔒';
+      document.getElementById('trialMsg').textContent=
+        td>14 ? 'TERMLY LICENSE — '+td+' days remaining' :
+        td>0  ? 'TERMLY LICENSE EXPIRING — '+td+' day'+(td===1?'':'s')+' left! Renew soon.' :
+                'TERMLY LICENSE EXPIRED — Enter a new key to continue.';
+      banner.className=td>14?'trial-ok':td>0?'trial-warn':'trial-critical';
+    } else {
+      banner.className='';
+    }
+    return;
+  }
+  var d=getDaysRemaining();
+  document.getElementById('trialIcon').textContent=d>7?'⏳':d>0?'⚠️':'🔒';
+  document.getElementById('trialMsg').textContent=
+    d>7  ? 'FREE TRIAL — '+d+' days remaining' :
+    d>0  ? 'TRIAL EXPIRING — '+d+' day'+(d===1?'':'s')+' left! Activate now.' :
+           'TRIAL EXPIRED — Contact Infolab to activate.';
+  banner.className=d>7?'trial-ok':d>0?'trial-warn':'trial-critical';
+}
+function openActivationFromTrial(){
+  document.getElementById('activateGate').style.display='flex';
+  document.getElementById('appRoot').style.display='none';
+}
+function checkLicenseActivation(){
+  startTrialIfNew();
+  if(isFullyActivated()||getDaysRemaining()>0){
+    document.getElementById('activateGate').style.display='none';
+    document.getElementById('appRoot').style.cssText='display:flex;width:100vw;height:100vh;';
+    return true;
+  }
+  document.getElementById('activateGate').style.display='flex';
+  var p=document.querySelector('#activateGate p');
+  var l=getLicenseInfo();
+  var wasTermly = l && l.plan==='termly' && l.activated;
+  if(p) p.textContent = wasTermly
+    ? 'Your termly license has expired. Enter a new activation key from Infolab to continue.'
+    : 'Your 30-day free trial has expired. Enter your activation key from Infolab to continue.';
+  return false;
+}
+
+function activateApp() {
+  var key = document.getElementById('activateKey').value.trim();
+  var schoolName = document.getElementById('activateSchoolName').value.trim();
+  var errEl = document.getElementById('activateError');
+  errEl.style.display = 'none';
+
+  if (!schoolName) {
+    errEl.textContent = 'Please enter your school name.';
+    errEl.style.display = 'block';
+    return;
+  }
+  var plan = getLicensePlan(key);
+  if (!plan) {
+    errEl.textContent = 'Invalid activation key. Please check the key and try again, or contact Infolab support.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  try {
+    var lic = {
+      activated: true,
+      key: key.trim().toUpperCase(),
+      plan: plan,
+      activatedAt: new Date().toISOString(),
+      expiresAt: null
+    };
+    if (plan === 'termly') {
+      var exp = new Date();
+      exp.setMonth(exp.getMonth() + TERMLY_MONTHS);
+      lic.expiresAt = exp.toISOString();
+    }
+    localStorage.setItem('fcm_license', JSON.stringify(lic));
+  } catch(e) {}
+
+  // Pre-fill the school name into app state on first activation, so the
+  // school doesn't have to type it twice (once here, once in Settings).
+  try {
+    var existing = JSON.parse(localStorage.getItem('fcm_v2') || 'null');
+    if (!existing) {
+      var seeded = JSON.parse(JSON.stringify(S_DEF));
+      seeded.school.name = schoolName;
+      localStorage.setItem('fcm_v2', JSON.stringify(seeded));
+    }
+  } catch(e) {}
+
+  location.reload();
+}
+
+// ═══════════════════════════════════════
+//  SCHOOL IDENTITY — now set by the school themselves during setup,
+//  not locked at build time. See Settings to change the school name.
+// ═══════════════════════════════════════
+var DEFAULT_SCHOOL_NAME = "My School";
+
+// ═══════════════════════════════════════
+//  STATE — v2 with term architecture
+// ═══════════════════════════════════════
+/*
+  S = {
+    school: { name, session, term },
+    sms: {...},
+    backup: {...},
+    admCounter: N,
+    students: [...],        ← global: {id, name, admNo, classId, gender, parentName, parentPhone}
+    classes: [...],         ← global: {id, name, fee}
+    paymentTypes: [...],
+    terms: {
+      "2024/2025-1": {
+        key: "2024/2025-1",
+        session: "2024/2025",
+        term: 1,
+        label: "2024/2025 Term 1",
+        locked: false,
+        createdAt: ISO,
+        closedAt: ISO|null,
+        payments: [...],
+        otherPayments: [...],
+        carriedForward: { [studentId]: amount }  ← debt from previous term
+      },
+      ...
+    },
+    activeTerm: "2024/2025-1"
+  }
+*/
+
+var S_DEF = {
+  school: { name: DEFAULT_SCHOOL_NAME, session: '2024/2025', term: 1 },
+  sms: { provider: 'bulksms', apiToken: 'KzQwJrlGTcELgNEqswFcRCKCxP5ZSOjrN5TtuB1kNIUY9lSaPb1TSDevK1my', senderId: 'SCHALERT', enabled: false, log: [] },
+  email: { enabled: false, smtpHost: '', smtpPort: 587, fromEmail: '', fromName: '', appPassword: '', log: [] },
+  backup: {},
+  classes: [],
+  students: [],
+  paymentTypes: [],
+  admCounter: 1,
+  terms: {},
+  activeTerm: '',
+  feeSetup: {}
+};
+
+var S;
+
+// Migration helper: upgrade old flat v1 data to new v2 structure
+function migrateV1toV2(old) {
+  var termKey = (old.school.session || '2024/2025') + '-' + (old.school.term || 1);
+  var newS = {
+    school: old.school,
+    sms: old.sms || { provider:'bulksms', apiToken:'KzQwJrlGTcELgNEqswFcRCKCxP5ZSOjrN5TtuB1kNIUY9lSaPb1TSDevK1my', senderId:'SCHALERT', enabled:false, log:[] },
+    backup: old.backup || {},
+    classes: old.classes || [],
+    students: old.students || [],
+    paymentTypes: old.paymentTypes || S_DEF.paymentTypes,
+    admCounter: old.admCounter || 1,
+    _lastBackup: old._lastBackup,
+    _lastGDriveBackup: old._lastGDriveBackup,
+    _lastBackupFile: old._lastBackupFile,
+    terms: {},
+    activeTerm: termKey
+  };
+  newS.terms[termKey] = {
+    key: termKey,
+    session: old.school.session || '2024/2025',
+    term: old.school.term || 1,
+    label: (old.school.session || '2024/2025') + ' Term ' + (old.school.term || 1),
+    locked: false,
+    createdAt: new Date().toISOString(),
+    closedAt: null,
+    payments: old.payments || [],
+    otherPayments: old.otherPayments || [],
+    additionalCharges: old.additionalCharges || [],
+    carriedForward: {}
+  };
+  return newS;
+}
+
+try {
+  // Try v2 first
+  var _sv2 = localStorage.getItem('fcm_v2');
+  if (_sv2) {
+    S = JSON.parse(_sv2);
+  } else {
+    // Try migrating v1
+    var _sv1 = localStorage.getItem('fcm_v1');
+    if (_sv1) {
+      var _old = JSON.parse(_sv1);
+      if (_old.students && !_old.terms) {
+        S = migrateV1toV2(_old);
+        localStorage.setItem('fcm_v2', JSON.stringify(S));
+      } else {
+        S = JSON.parse(JSON.stringify(S_DEF));
+      }
+    } else {
+      S = JSON.parse(JSON.stringify(S_DEF));
+    }
+  }
+} catch(e) { S = JSON.parse(JSON.stringify(S_DEF)); }
+
+// Guard: ensure terms object exists
+if (!S.terms) S.terms = {};
+if (!S.sms) S.sms = { provider:'bulksms', apiToken:'KzQwJrlGTcELgNEqswFcRCKCxP5ZSOjrN5TtuB1kNIUY9lSaPb1TSDevK1my', senderId:'SCHALERT', enabled:false, log:[] };
+// Migrate old termii keys → bulksms
+if (S.sms.provider === 'termii' || S.sms.provider === 'twilio') { S.sms.provider = 'bulksms'; }
+if (!S.sms.apiToken && S.sms.apiKey) { S.sms.apiToken = S.sms.apiKey; }
+if (!S.email) S.email = { enabled:false, smtpHost:'', smtpPort:587, fromEmail:'', fromName:'', appPassword:'', log:[] };
+if (S.email && S.email.serviceId !== undefined && S.email.smtpHost === undefined) { S.email = { enabled:false, smtpHost:'', smtpPort:587, fromEmail:'', fromName:'', appPassword:'', log:[] }; }
+if (!S.backup) S.backup = {};
+if (!S.feeSetup) S.feeSetup = {};
+if (S.admCounter === undefined || S.admCounter === null) S.admCounter = 0;
+
+// If no active term key, create one from school settings
+if (!S.activeTerm) {
+  var _initKey = S.school.session + '-' + S.school.term;
+  if (!S.terms[_initKey]) {
+    S.terms[_initKey] = makeTerm(S.school.session, S.school.term);
+  }
+  S.activeTerm = _initKey;
+}
+
+// Ensure active term exists in terms map
+if (!S.terms[S.activeTerm]) {
+  S.terms[S.activeTerm] = makeTerm(S.school.session, S.school.term);
+}
+
+// ── The term currently being VIEWED (may differ from activeTerm when browsing history)
+var viewingTermKey = S.activeTerm;
+
+function makeTerm(session, termNum) {
+  var key = session + '-' + termNum;
+  return {
+    key: key,
+    session: session,
+    term: termNum,
+    label: session + ' Term ' + termNum,
+    locked: false,
+    createdAt: new Date().toISOString(),
+    closedAt: null,
+    payments: [],
+    otherPayments: [],
+    additionalCharges: [],
+    carriedForward: {}
+  };
+}
+
+function getActiveTerm() { return S.terms[S.activeTerm]; }
+function getViewingTerm() { return S.terms[viewingTermKey] || getActiveTerm(); }
+function isViewingActiveTerm() { return viewingTermKey === S.activeTerm; }
+function isViewingLocked() { var t = getViewingTerm(); return t && t.locked; }
+
+function sv() {
+  try { localStorage.setItem('fcm_v2', JSON.stringify(S)); } catch(e) {}
+}
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmt(n) { return Number(n||0).toLocaleString('en-NG', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+function pct(a,b) { return b>0 ? ((a/b)*100).toFixed(1) : '0.0'; }
+var curPage = 'dashboard';
+
+// ── AUTO ADMISSION NUMBER ──
+function genAdmNo() {
+  if(!S.admCounter || S.admCounter === 0) return '';
+  var yy = new Date().getFullYear().toString().slice(2);
+  var num = String(S.admCounter).padStart(4, '0');
+  S.admCounter++;
+  sv();
+  return 'ADM' + yy + '/' + num;
+}
+function initAdmNoFromManual(val) {
+  if(!val) return;
+  var match = val.match(/(\d+)\s*$/);
+  if(match) { var n = parseInt(match[1],10); if(!isNaN(n)) { S.admCounter = n+1; sv(); } }
+}
+
+// ── HELPERS ──
+function getClass(id) { return S.classes.find(function(c){return c.id===id;}); }
+function getStudent(id) { return S.students.find(function(s){return s.id===id;}); }
+
+// payments and otherPayments are always pulled from the VIEWING term
+function studentPayments(sid) {
+  var t = getViewingTerm(); if(!t) return [];
+  return (t.payments||[]).filter(function(p){return p.studentId===sid;});
+}
+function studentTotalPaid(sid) {
+  return studentPayments(sid).reduce(function(a,p){return a+Number(p.amount||0);},0);
+}
+function studentTotalDiscount(sid) {
+  return studentPayments(sid).reduce(function(a,p){return a+Number(p.discount||0);},0);
+}
+function studentFee(sid) {
+  var stu = getStudent(sid); if(!stu) return 0;
+  // Use feeSetup total if available for this class/term
+  var key = stu.classId + '_' + (viewingTermKey || S.activeTerm);
+  if(S.feeSetup && S.feeSetup[key] && S.feeSetup[key].length) {
+    return S.feeSetup[key].reduce(function(a,f){return a+Number(f.amount||0);},0);
+  }
+  var cls = getClass(stu.classId); return cls ? Number(cls.fee||0) : 0;
+}
+// carried forward for the VIEWING term
+function studentCarriedForward(sid) {
+  var t = getViewingTerm(); if(!t || !t.carriedForward) return 0;
+  return Number(t.carriedForward[sid]||0);
+}
+// additional one-off charges added to THIS student's bill (VIEWING term) — e.g. late fee, damage fee, uniform, etc.
+function studentAdditionalCharges(sid) {
+  var t = getViewingTerm(); if(!t || !t.additionalCharges) return 0;
+  return t.additionalCharges.filter(function(c){return c.studentId===sid;}).reduce(function(a,c){return a+Number(c.amount||0);},0);
+}
+// the specific additional charges added alongside ONE payment (for receipt/email display)
+function paymentAdditionalCharges(paymentId) {
+  var t = getViewingTerm(); if(!t || !t.additionalCharges || !paymentId) return [];
+  return t.additionalCharges.filter(function(c){return c.paymentId===paymentId;});
+}
+// Total balance = fee + carried-forward debt + additional charges - payments - discounts
+function studentBalance(sid) {
+  var fee = studentFee(sid);
+  var cf = studentCarriedForward(sid);
+  var ac = studentAdditionalCharges(sid);
+  var paid = studentTotalPaid(sid);
+  var disc = studentTotalDiscount(sid);
+  return (fee + cf + ac) - paid - disc;
+}
+function hasPaid(sid) {
+  return studentBalance(sid) <= 0 && (studentFee(sid) + studentCarriedForward(sid) + studentAdditionalCharges(sid)) > 0;
+}
+function classStudents(cid) { return S.students.filter(function(s){return s.classId===cid;}); }
+
+function termsList() {
+  return Object.values(S.terms).sort(function(a,b){
+    if(a.session !== b.session) return a.session < b.session ? -1 : 1;
+    return a.term - b.term;
+  });
+}
+
+// ── TERM VIEW SWITCHING ──
+function switchTermView(key) {
+  if(!S.terms[key]) return;
+  viewingTermKey = key;
+  updateTermViewUI();
+  renderPage();
+}
+
+function updateTermViewUI() {
+  var sel = document.getElementById('termViewSelect');
+  var badge = document.getElementById('termViewBadge');
+  if(!sel) return;
+  // Rebuild options
+  sel.innerHTML = '';
+  termsList().forEach(function(t) {
+    var opt = document.createElement('option');
+    opt.value = t.key;
+    opt.textContent = t.label + (t.locked ? ' 🔒' : ' ▶');
+    if(t.key === viewingTermKey) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  var isActive = isViewingActiveTerm();
+  if(badge) {
+    if(isActive) {
+      badge.textContent = 'LIVE';
+      badge.className = 'term-badge';
+    } else {
+      badge.textContent = 'VIEW';
+      badge.className = 'term-badge readonly';
+    }
+  }
+}
+
+// ── NAVIGATION ──
+function navigate(page) {
+  curPage = page;
+  document.querySelectorAll('.nav-item').forEach(function(el){ el.classList.remove('active'); });
+  var nav = document.getElementById('nav-' + page);
+  if(nav) nav.classList.add('active');
+  renderPage();
+}
+
+function renderPage() {
+  var badge = document.getElementById('smsStatusBadge');
+  if(badge) badge.innerHTML = S.sms && S.sms.enabled
+    ? '<span style="color:var(--green);">📱 SMS ON</span>'
+    : '<span style="color:var(--text3);">📱 SMS OFF</span>';
+  updateBackupBadge();
+  updateTermViewUI();
+  var titles = {
+    dashboard: '📊 Dashboard',
+    students: '👨‍🎓 Students',
+    payments: '💳 Payments',
+    'other-payments': '📦 Other Payments',
+    'class-analysis': '🏫 Class-by-Class Analysis',
+    debtors: '⚠️ Debtors List',
+    'term-history': '📆 Term History',
+    classes: '🗂️ Classes & Fees Setup',
+    'fee-setup': '🧾 Fee Setup (Per Class)',
+    backup: '💾 Backup & Restore'
+  };
+  document.getElementById('pageTitle').textContent = titles[curPage] || curPage;
+  document.getElementById('topbarActions').innerHTML = '';
+  var pages = {
+    dashboard: renderDashboard,
+    students: renderStudents,
+    payments: renderPayments,
+    'other-payments': renderOtherPayments,
+    'class-analysis': renderClassAnalysis,
+    debtors: renderDebtors,
+    'term-history': renderTermHistory,
+    classes: renderClasses,
+    'fee-setup': renderFeeSetup,
+    backup: renderBackup
+  };
+  (pages[curPage] || renderDashboard)();
+}
+
+// ══════════════════════════════════════════════
+//  DASHBOARD
+// ══════════════════════════════════════════════
+function renderDashboard() {
+  var el = document.getElementById('content');
+  var t = getViewingTerm();
+  var actions = document.getElementById('topbarActions');
+
+  actions.innerHTML =
+    '<button class="btn btn-ghost btn-sm" onclick="switchTermView(S.activeTerm)" style="'+(isViewingActiveTerm()?'display:none':'')+'">↩ Back to Live Term</button> '+
+    '<button class="btn btn-orange" onclick="openCloseTerm()">🔒 Close Term & Start New</button>';
+
+  var totalStudents = S.students.length;
+  var totalExpected = S.students.reduce(function(a,s){ return a + studentFee(s.id) + studentCarriedForward(s.id); }, 0);
+  var totalPaid = S.students.reduce(function(a,s){ return a + studentTotalPaid(s.id); }, 0);
+  var paidStudents = S.students.filter(function(s){ return hasPaid(s.id); }).length;
+  var debtors = S.students.filter(function(s){ return studentBalance(s.id) > 0; });
+  var totalOwed = debtors.reduce(function(a,s){ return a + studentBalance(s.id); }, 0);
+  var collPct = pct(totalPaid, totalExpected);
+  var otherTotal = (t.otherPayments||[]).reduce(function(a,p){ return a + Number(p.amount||0); }, 0);
+
+  // Carried forward total
+  var cfTotal = 0;
+  if(t.carriedForward) {
+    Object.values(t.carriedForward).forEach(function(v){ cfTotal += Number(v||0); });
+  }
+
+  var termBanner = '';
+  if(!isViewingActiveTerm()) {
+    termBanner = '<div class="alert alert-info" style="margin-bottom:14px;">📅 Viewing historical term. <button class="btn btn-ghost btn-sm" style="margin-left:8px;" onclick="switchTermView(S.activeTerm)">↩ Return to Live Term</button></div>';
+  }
+
+  el.innerHTML =
+    termBanner +
+    '<div class="alert alert-info">📅 Viewing: <b>'+esc(t.label)+'</b> &nbsp;|&nbsp; School: <b>'+esc(S.school.name)+'</b>'+
+      (t.locked ? ' &nbsp;<span class="badge badge-yellow">CLOSED</span>' : ' &nbsp;<span class="badge badge-green">ACTIVE</span>')+
+      (cfTotal>0 ? ' &nbsp;|&nbsp; Carried Forward: <b style="color:var(--yellow);">₦'+fmt(cfTotal)+'</b>' : '')+
+    '</div>' +
+    '<div class="stats-grid">' +
+      statCard('blue','👥','Total Students', totalStudents, 'Enrolled', '') +
+      statCard('blue','💰','Expected Fees', '₦'+fmt(totalExpected), S.classes.length+' classes'+(cfTotal>0?' + ₦'+fmt(cfTotal)+' c/f':''), '') +
+      statCard('green','✅','Amount Collected', '₦'+fmt(totalPaid), paidStudents+' fully paid', collPct+'%', 'pb-green', collPct) +
+      statCard('green','📈','Collection Rate', collPct+'%', 'Of total expected fees', '', 'pb-blue', collPct) +
+      statCard('red','⚠️','Total Debtors', debtors.length, 'Students with balance', pct(debtors.length, totalStudents)+'% of students') +
+      statCard('red','💸','Amount Owed', '₦'+fmt(totalOwed), 'Outstanding balance', '') +
+      statCard('yellow','📦','Other Payments', '₦'+fmt(otherTotal), (t.otherPayments||[]).length+' transactions', '') +
+      statCard('purple','🏦','Total Revenue', '₦'+fmt(totalPaid + otherTotal), 'Fees + other payments', '') +
+    '</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">' +
+      '<div class="card"><div class="card-head">📊 Payment Collection Chart</div>' + buildDashChart() + '</div>' +
+      '<div class="card"><div class="card-head">🏫 Class Summary</div>' + buildClassSummaryTable() + '</div>' +
+    '</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">' +
+      '<div class="card"><div class="card-head">📦 Other Payment Breakdown</div>' + buildOtherPayChart() + '</div>' +
+      '<div class="card"><div class="card-head">⚠️ Top Debtors</div>' + buildTopDebtors() + '</div>' +
+    '</div>';
+}
+
+function statCard(color, icon, label, value, sub, extra, pbClass, pbVal) {
+  var bar = pbClass ? '<div class="progress-wrap"><div class="progress-bar '+pbClass+'" style="width:'+Math.min(pbVal,100)+'%"></div></div>' : '';
+  return '<div class="stat-card '+color+'">'+
+    '<div class="stat-icon">'+icon+'</div>'+
+    '<div class="stat-label">'+label+'</div>'+
+    '<div class="stat-value">'+value+'</div>'+
+    (sub?'<div class="stat-sub">'+sub+'</div>':'')+
+    (extra?'<div class="stat-sub" style="color:var(--green);">'+extra+'</div>':'')+
+    bar+'</div>';
+}
+
+function buildDashChart() {
+  if(!S.classes.length) return '<div class="empty"><div class="empty-icon">📊</div><div class="empty-text">Add classes and students to see chart.</div></div>';
+  var maxVal = 0;
+  var bars = S.classes.map(function(cls) {
+    var stus = classStudents(cls.id);
+    var exp = stus.reduce(function(a,s){ return a+studentFee(s.id)+studentCarriedForward(s.id); },0);
+    var paid = stus.reduce(function(a,s){ return a+studentTotalPaid(s.id); },0);
+    if(exp > maxVal) maxVal = exp;
+    if(paid > maxVal) maxVal = paid;
+    return { name: cls.name, exp: exp, paid: paid };
+  });
+  if(maxVal===0) maxVal = 1;
+  var barsHtml = bars.map(function(b) {
+    var expH = Math.round((b.exp/maxVal)*140);
+    var paidH = Math.round((b.paid/maxVal)*140);
+    return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;justify-content:flex-end;height:160px;">'+
+      '<div style="display:flex;align-items:flex-end;gap:3px;height:140px;">'+
+        '<div style="width:14px;background:rgba(0,212,255,0.3);border:1px solid var(--accent);border-radius:4px 4px 0 0;height:'+expH+'px;" title="Expected: ₦'+fmt(b.exp)+'"></div>'+
+        '<div style="width:14px;background:var(--green);border-radius:4px 4px 0 0;height:'+paidH+'px;" title="Paid: ₦'+fmt(b.paid)+'"></div>'+
+      '</div>'+
+      '<div style="font-size:9px;color:var(--text3);text-align:center;font-family:var(--mono);margin-top:4px;max-width:50px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(b.name)+'</div>'+
+    '</div>';
+  }).join('');
+  return '<div style="display:flex;align-items:flex-end;gap:6px;overflow-x:auto;padding-bottom:4px;">'+barsHtml+'</div>'+
+    '<div class="chart-legend">'+
+      '<div class="legend-item"><div class="legend-dot" style="background:rgba(0,212,255,0.4);border:1px solid var(--accent);"></div>Expected</div>'+
+      '<div class="legend-item"><div class="legend-dot" style="background:var(--green);"></div>Collected</div>'+
+    '</div>';
+}
+
+function buildClassSummaryTable() {
+  if(!S.classes.length) return '<div class="empty"><div class="empty-icon">🏫</div><div class="empty-text">No classes yet.</div></div>';
+  return '<div class="tbl-wrap"><table>'+
+    '<thead><tr><th>Class</th><th>Students</th><th>Expected</th><th>Paid</th><th>Rate</th></tr></thead><tbody>'+
+    S.classes.map(function(cls) {
+      var stus = classStudents(cls.id);
+      var exp = stus.reduce(function(a,s){ return a+studentFee(s.id)+studentCarriedForward(s.id); },0);
+      var paid = stus.reduce(function(a,s){ return a+studentTotalPaid(s.id); },0);
+      var p = pct(paid, exp);
+      var color = p>=80?'badge-green':p>=50?'badge-yellow':'badge-red';
+      return '<tr><td><b>'+esc(cls.name)+'</b></td><td>'+stus.length+'</td><td>₦'+fmt(exp)+'</td><td>₦'+fmt(paid)+'</td>'+
+        '<td><span class="badge '+color+'">'+p+'%</span></td></tr>';
+    }).join('')+'</tbody></table></div>';
+}
+
+function buildOtherPayChart() {
+  var t = getViewingTerm();
+  if(!(t.otherPayments||[]).length) return '<div class="empty"><div class="empty-icon">📦</div><div class="empty-text">No other payments recorded.</div></div>';
+  var byType = {};
+  t.otherPayments.forEach(function(p) { byType[p.type] = (byType[p.type]||0) + Number(p.amount||0); });
+  var colors = ['var(--purple)','var(--yellow)','var(--accent)','var(--green)','var(--red)'];
+  var entries = Object.keys(byType).map(function(k,i){ return {type:k, amt:byType[k], color:colors[i%colors.length]}; });
+  var maxAmt = Math.max.apply(null, entries.map(function(e){return e.amt;}));
+  return entries.map(function(e) {
+    var w = Math.round((e.amt/maxAmt)*100);
+    return '<div style="margin-bottom:12px;">'+
+      '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;">'+
+        '<span style="color:var(--text2);">'+esc(e.type)+'</span>'+
+        '<span style="color:'+e.color+';font-family:var(--mono);">₦'+fmt(e.amt)+'</span>'+
+      '</div>'+
+      '<div class="progress-wrap"><div class="progress-bar" style="width:'+w+'%;background:'+e.color+';"></div></div>'+
+    '</div>';
+  }).join('');
+}
+
+function buildTopDebtors() {
+  var debtors = S.students.filter(function(s){ return studentBalance(s.id) > 0; })
+    .sort(function(a,b){ return studentBalance(b.id) - studentBalance(a.id); }).slice(0,5);
+  if(!debtors.length) return '<div class="alert alert-success">🎉 No debtors! All students have paid.</div>';
+  return '<div class="tbl-wrap"><table>'+
+    '<thead><tr><th>Student</th><th>Class</th><th>Balance</th></tr></thead><tbody>'+
+    debtors.map(function(s) {
+      var cls = getClass(s.classId);
+      var cf = studentCarriedForward(s.id);
+      return '<tr><td><b>'+esc(s.name)+'</b><br><span style="font-size:10px;color:var(--text3);">'+esc(s.admNo)+'</span>'+
+        (cf>0?'<br><span class="cf-badge">↩ C/F: ₦'+fmt(cf)+'</span>':'')+'</td>'+
+        '<td>'+esc(cls?cls.name:'—')+'</td>'+
+        '<td style="color:var(--red);font-family:var(--mono);">₦'+fmt(studentBalance(s.id))+'</td></tr>';
+    }).join('')+'</tbody></table></div>';
+}
+
+// ══════════════════════════════════════════════
+//  TERM MANAGEMENT — CLOSE TERM & START NEW
+// ══════════════════════════════════════════════
+function openCloseTerm() {
+  var t = getActiveTerm();
+  if(!t) return;
+
+  // Count debtors and total debt
+  var debtors = S.students.filter(function(s){ return studentBalance(s.id) > 0; });
+  var totalDebt = debtors.reduce(function(a,s){ return a+studentBalance(s.id); }, 0);
+
+  // Suggest next term
+  var nextTerm = t.term < 3 ? t.term + 1 : 1;
+  var nextSession = t.term < 3 ? t.session : (function(){
+    var parts = t.session.split('/');
+    if(parts.length===2) { var y=parseInt(parts[0]); return (y+1)+'/'+(y+2); }
+    return t.session;
+  })();
+
+  var debtorHtml = debtors.length
+    ? '<div class="alert alert-warn" style="margin-bottom:12px;">⚠️ <b>'+debtors.length+' student(s)</b> have an outstanding balance of <b>₦'+fmt(totalDebt)+'</b>.<br>You can choose to carry these balances forward to the new term.</div>'
+    : '<div class="alert alert-success" style="margin-bottom:12px;">✅ All students have cleared their fees for this term!</div>';
+
+  var bodyHtml =
+    '<div style="font-size:11px;color:var(--text2);margin-bottom:16px;">This will <b>archive "'+esc(t.label)+'"</b> and open a fresh new term. Student names and class assignments are retained. You can still switch back to any term and edit its records at any time.</div>'+
+    debtorHtml+
+    (debtors.length ?
+      '<div class="fg" style="margin-bottom:14px;">'+
+        '<label>Handle Unpaid Balances</label>'+
+        '<select id="cf-mode">'+
+          '<option value="carry">✅ Carry forward to next term (students still owe)</option>'+
+          '<option value="waive">❌ Waive all balances (treat as cleared)</option>'+
+        '</select>'+
+        '<div style="font-size:10px;color:var(--text3);margin-top:4px;">Carry forward adds the debt to each student\'s balance in the new term.</div>'+
+      '</div>' : '')+
+    '<hr class="divider">'+
+    '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.7px;font-family:var(--mono);margin-bottom:10px;">New Term Details</div>'+
+    '<div class="form-grid">'+
+      '<div class="fg"><label>New Session</label><input id="new-term-session" value="'+esc(nextSession)+'" placeholder="e.g. 2025/2026"></div>'+
+      '<div class="fg"><label>New Term Number</label><select id="new-term-num">'+
+        [1,2,3].map(function(n){ return '<option value="'+n+'"'+(n===nextTerm?' selected':'')+'>Term '+n+'</option>'; }).join('')+
+      '</select></div>'+
+    '</div>'+
+    '<div class="alert alert-info" style="margin-top:12px;font-size:11px;">💡 Class fees can be updated after opening the new term via <b>Classes & Fees Setup</b>.</div>';
+
+  showModal('closeTermModal', '🔒 Close Term & Open New', bodyHtml, function() {
+    var newSession = (document.getElementById('new-term-session')||{}).value.trim() || nextSession;
+    var newTermNum = parseInt((document.getElementById('new-term-num')||{}).value)||nextTerm;
+    var cfMode = (document.getElementById('cf-mode')||{}).value || 'carry';
+
+    var newKey = newSession + '-' + newTermNum;
+    if(S.terms[newKey]) {
+      if(!confirm('A term "'+newSession+' Term '+newTermNum+'" already exists. Switch to it?')) return;
+      S.activeTerm = newKey;
+      viewingTermKey = newKey;
+      S.school.session = newSession;
+      S.school.term = newTermNum;
+      sv(); closeModal(); renderPage();
+      showToast('↩ Switched to existing term: '+newSession+' Term '+newTermNum);
+      return;
+    }
+
+    // Lock current term
+    t.locked = true;
+    t.closedAt = new Date().toISOString();
+
+    // Build carried-forward map
+    var cfMap = {};
+    if(cfMode === 'carry' && debtors.length) {
+      debtors.forEach(function(s) {
+        var bal = studentBalance(s.id);
+        if(bal > 0) cfMap[s.id] = bal;
+      });
+    }
+
+    // Create new term
+    var newTerm = makeTerm(newSession, newTermNum);
+    newTerm.carriedForward = cfMap;
+    S.terms[newKey] = newTerm;
+    S.activeTerm = newKey;
+    viewingTermKey = newKey;
+    S.school.session = newSession;
+    S.school.term = newTermNum;
+
+    sv(); closeModal(); renderPage();
+    var cfCount = Object.keys(cfMap).length;
+    var cfTotal = Object.values(cfMap).reduce(function(a,v){return a+v;},0);
+    showToast('✅ Term closed! New: '+newSession+' Term '+newTermNum+(cfCount?' · '+cfCount+' balances carried forward (₦'+fmt(cfTotal)+')':''));
+  });
+}
+
+// ══════════════════════════════════════════════
+//  TERM HISTORY PAGE
+// ══════════════════════════════════════════════
+function renderTermHistory() {
+  var el = document.getElementById('content');
+  var actions = document.getElementById('topbarActions');
+  actions.innerHTML = '<button class="btn btn-orange" onclick="openCloseTerm()">🔒 Close Term & Start New</button>';
+
+  var tl = termsList();
+  if(!tl.length) {
+    el.innerHTML = '<div class="card"><div class="empty"><div class="empty-icon">📆</div><div class="empty-text">No terms recorded yet.</div></div></div>';
+    return;
+  }
+
+  var html = '<div class="card" style="margin-bottom:18px;">'+
+    '<div class="card-head">📆 All Terms</div>'+
+    '<div style="font-size:11px;color:var(--text3);margin-bottom:14px;">Click a term to view its records. The active term is highlighted.</div>'+
+    tl.map(function(t) {
+      var tPays = (t.payments||[]);
+      var tOther = (t.otherPayments||[]);
+      var totalCollected = tPays.reduce(function(a,p){return a+Number(p.amount||0);},0);
+      var cfTotal = t.carriedForward ? Object.values(t.carriedForward).reduce(function(a,v){return a+Number(v||0);},0) : 0;
+      var cfCount = t.carriedForward ? Object.keys(t.carriedForward).length : 0;
+      var isActive = t.key === S.activeTerm;
+      var isViewing = t.key === viewingTermKey;
+      return '<div class="term-history-card'+(isActive?' current':'')+'" onclick="switchTermView(\''+t.key+'\')" title="Click to view this term">'+
+        '<div>'+
+          '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">'+esc(t.label)+
+            (isActive ? ' <span class="badge badge-green" style="font-size:9px;">ACTIVE</span>' : ' <span class="badge badge-yellow" style="font-size:9px;">CLOSED</span>')+
+            (isViewing ? ' <span class="badge badge-blue" style="font-size:9px;">VIEWING</span>' : '')+
+          '</div>'+
+          '<div style="font-size:11px;color:var(--text3);">'+tPays.length+' payments · '+S.students.length+' students · '+tOther.length+' other payments</div>'+
+          (cfCount>0 ? '<div style="font-size:11px;color:#ff8c42;margin-top:3px;">↩ '+cfCount+' balances carried in (₦'+fmt(cfTotal)+')</div>' : '')+
+          (t.closedAt ? '<div style="font-size:10px;color:var(--text3);margin-top:3px;">Closed: '+new Date(t.closedAt).toLocaleDateString('en-NG')+'</div>' : '')+
+        '</div>'+
+        '<div style="text-align:right;">'+
+          '<div style="font-size:16px;font-weight:800;color:var(--green);font-family:var(--mono);">₦'+fmt(totalCollected)+'</div>'+
+          '<div style="font-size:10px;color:var(--text3);">collected</div>'+
+          '<button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="event.stopPropagation();switchTermView(\''+t.key+'\')">👁 View</button>'+
+        '</div>'+
+      '</div>';
+    }).join('')+
+  '</div>';
+
+  // Comparison table across all terms
+  if(tl.length > 1) {
+    html += '<div class="card">'+
+      '<div class="card-head">📊 Term Comparison</div>'+
+      '<div class="tbl-wrap"><table>'+
+      '<thead><tr><th>Term</th><th>Students</th><th>Payments</th><th>Collected</th><th>Carry-Fwd In</th><th>Status</th></tr></thead><tbody>'+
+      tl.map(function(t) {
+        var tPays = (t.payments||[]);
+        var collected = tPays.reduce(function(a,p){return a+Number(p.amount||0);},0);
+        var cfIn = t.carriedForward ? Object.values(t.carriedForward).reduce(function(a,v){return a+Number(v||0);},0) : 0;
+        var isActive = t.key === S.activeTerm;
+        return '<tr>'+
+          '<td><b>'+esc(t.label)+'</b></td>'+
+          '<td>'+S.students.length+'</td>'+
+          '<td>'+tPays.length+'</td>'+
+          '<td style="font-family:var(--mono);color:var(--green);">₦'+fmt(collected)+'</td>'+
+          '<td style="font-family:var(--mono);color:#ff8c42;">'+(cfIn>0?'₦'+fmt(cfIn):'—')+'</td>'+
+          '<td>'+(isActive?'<span class="badge badge-green">ACTIVE</span>':'<span class="badge badge-yellow">CLOSED</span>')+'</td>'+
+        '</tr>';
+      }).join('')+
+      '</tbody></table></div>'+
+    '</div>';
+  }
+
+  el.innerHTML = html;
+}
+
+// ══════════════════════════════════════════════
+//  CLASSES
+// ══════════════════════════════════════════════
+function renderClasses() {
+  var actions = document.getElementById('topbarActions');
+  actions.innerHTML = '<button class="btn btn-primary" onclick="openAddClass()">+ Add Class</button>';
+  var el = document.getElementById('content');
+  if(!S.classes.length) {
+    el.innerHTML = '<div class="card"><div class="empty"><div class="empty-icon">🗂️</div><div class="empty-text">No classes yet. Add your first class.</div></div></div>';
+    return;
+  }
+  el.innerHTML = '<div class="tbl-wrap"><table>'+
+    '<thead><tr><th>#</th><th>Class Name</th><th>Fee (₦)</th><th>Students</th><th>Actions</th></tr></thead><tbody>'+
+    S.classes.map(function(cls, i) {
+      return '<tr>'+
+        '<td style="color:var(--text3);">'+(i+1)+'</td>'+
+        '<td><b>'+esc(cls.name)+'</b></td>'+
+        '<td style="font-family:var(--mono);color:var(--green);">₦'+fmt(cls.fee)+'</td>'+
+        '<td>'+classStudents(cls.id).length+'</td>'+
+        '<td><button class="btn btn-ghost btn-sm" onclick="openEditClass(\''+cls.id+'\')">✏️ Edit</button> '+
+          '<button class="btn btn-red btn-sm" onclick="deleteClass(\''+cls.id+'\')">🗑️</button></td>'+
+      '</tr>';
+    }).join('')+'</tbody></table></div>';
+}
+
+function openAddClass() { showClassModal(); }
+function openEditClass(id) { showClassModal(id); }
+function showClassModal(id) {
+  var cls = id ? getClass(id) : null;
+  showModal('classModal', (cls?'Edit':'Add')+' Class',
+    '<div class="fg" style="margin-bottom:12px;"><label>Class Name</label><input id="m-cls-name" value="'+esc(cls?cls.name:'')+'"></div>'+
+    '<div class="fg"><label>School Fees (₦)</label><input id="m-cls-fee" type="number" value="'+esc(cls?cls.fee:'')+'" placeholder="e.g. 25000"></div>',
+    function() {
+      var name = document.getElementById('m-cls-name').value.trim();
+      var fee = parseFloat(document.getElementById('m-cls-fee').value)||0;
+      if(!name) return alert('Class name is required.');
+      if(cls) { cls.name=name; cls.fee=fee; }
+      else S.classes.push({id:uid(), name:name, fee:fee});
+      sv(); closeModal(); renderPage();
+    }
+  );
+}
+function deleteClass(id) {
+  if(!confirm('Delete this class? Students in it will lose their class assignment.')) return;
+  S.classes = S.classes.filter(function(c){return c.id!==id;});
+  sv(); renderPage();
+}
+
+// ══════════════════════════════════════════════
+//  STUDENTS
+// ══════════════════════════════════════════════
+var _stuClassFilter = '';
+
+function renderStudents() {
+  var actions = document.getElementById('topbarActions');
+  actions.innerHTML = '<button class="btn btn-ghost" onclick="openBulkImport()">📥 Bulk Import (Excel)</button> <button class="btn btn-primary" onclick="openAddStudent()">+ Add Student</button>';
+
+  var el = document.getElementById('content');
+
+  var classPills =
+    '<div class="class-filter-bar">'+
+      '<span style="font-size:10px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:0.6px;margin-right:4px;">Class:</span>'+
+      '<button class="class-filter-btn'+(_stuClassFilter===''?' active':'')+'" onclick="_stuClassFilter=\'\';refreshStuTable()">All</button>'+
+      S.classes.map(function(c){
+        return '<button class="class-filter-btn'+(_stuClassFilter===c.id?' active':'')+'" onclick="_stuClassFilter=\''+c.id+'\';refreshStuTable()">'+esc(c.name)+'</button>';
+      }).join('')+
+    '</div>';
+
+  var filterHtml =
+    '<div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">'+
+      '<input id="stuSearch" placeholder="🔍 Search name or adm no..." style="max-width:240px;" oninput="refreshStuTable()">'+
+      '<select id="stuPayFilter" style="max-width:160px;" onchange="refreshStuTable()">'+
+        '<option value="">All Status</option>'+
+        '<option value="paid">Fully Paid</option>'+
+        '<option value="partial">Partial</option>'+
+        '<option value="unpaid">Unpaid</option>'+
+      '</select>'+
+    '</div>';
+
+  el.innerHTML = classPills + filterHtml + '<div id="stuTableWrap"></div>';
+  refreshStuTable();
+}
+
+function refreshStuTable() {
+  var search = (document.getElementById('stuSearch')||{}).value||'';
+  var pf = (document.getElementById('stuPayFilter')||{}).value||'';
+  var stus = S.students.filter(function(s) {
+    if(_stuClassFilter && s.classId !== _stuClassFilter) return false;
+    if(search && !s.name.toLowerCase().includes(search.toLowerCase()) && !s.admNo.toLowerCase().includes(search.toLowerCase())) return false;
+    if(pf === 'paid' && !hasPaid(s.id)) return false;
+    if(pf === 'partial') { var p = studentTotalPaid(s.id); if(p===0||hasPaid(s.id)) return false; }
+    if(pf === 'unpaid' && studentTotalPaid(s.id) > 0) return false;
+    return true;
+  });
+
+  var wrap = document.getElementById('stuTableWrap');
+  if(!wrap) return;
+  if(!S.students.length) { wrap.innerHTML = '<div class="card"><div class="empty"><div class="empty-icon">👨‍🎓</div><div class="empty-text">No students yet.</div></div></div>'; return; }
+  if(!stus.length) { wrap.innerHTML = '<div class="card"><div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">No students match the filter.</div></div></div>'; return; }
+
+  wrap.innerHTML = '<div class="tbl-wrap"><table>'+
+    '<thead><tr><th>#</th><th>Adm No</th><th>Name</th><th>Class</th><th>Parent</th><th>Phone</th><th>Email</th><th>This Term Fee</th><th>C/F Debt</th><th>Total Due</th><th>Paid</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead><tbody>'+
+    stus.map(function(s, i) {
+      var cls = getClass(s.classId);
+      var fee = studentFee(s.id);
+      var cf = studentCarriedForward(s.id);
+      var paid = studentTotalPaid(s.id);
+      var bal = studentBalance(s.id);
+      var totalDue = fee + cf;
+      var status = hasPaid(s.id) ? '<span class="badge badge-green">PAID</span>' :
+        paid>0 ? '<span class="badge badge-yellow">PARTIAL</span>' :
+        '<span class="badge badge-red">UNPAID</span>';
+      var t = getViewingTerm();
+      var stuPays = (t.payments||[]).filter(function(p){return p.studentId===s.id;}).sort(function(a,b){ return new Date(b.date)-new Date(a.date); });
+      var latestPay = stuPays[0];
+      var receiptBtn = latestPay
+        ? '<button class="btn btn-ghost btn-sm" title="View latest receipt" onclick="showReceiptById(\''+latestPay.id+'\')">🧾</button> '
+        : '';
+      return '<tr'+(cf>0?' class="cf-row"':'')+'>'+
+        '<td style="color:var(--text3);">'+(i+1)+'</td>'+
+        '<td style="font-family:var(--mono);font-size:11px;">'+esc(s.admNo)+'</td>'+
+        '<td><b>'+esc(s.name)+'</b></td>'+
+        '<td>'+esc(cls?cls.name:'—')+'</td>'+
+        '<td style="font-size:11px;">'+esc(s.parentName||'—')+'</td>'+
+        '<td style="font-family:var(--mono);font-size:11px;color:var(--accent);">'+esc(s.parentPhone||'—')+'</td>'+
+        '<td style="font-size:11px;color:var(--green);">'+esc(s.parentEmail||'—')+'</td>'+
+        '<td style="font-family:var(--mono);">₦'+fmt(fee)+'</td>'+
+        '<td style="font-family:var(--mono);color:#ff8c42;">'+(cf>0?'<span class="cf-badge">↩ ₦'+fmt(cf)+'</span>':'—')+'</td>'+
+        '<td style="font-family:var(--mono);font-weight:600;">₦'+fmt(totalDue)+'</td>'+
+        '<td style="font-family:var(--mono);color:var(--green);">₦'+fmt(paid)+'</td>'+
+        '<td style="font-family:var(--mono);color:'+(bal>0?'var(--red)':'var(--green)')+';">₦'+fmt(bal)+'</td>'+
+        '<td>'+status+'</td>'+
+        '<td>'+
+          receiptBtn+
+          '<button class="btn btn-ghost btn-sm" onclick="openEditStudent(\''+s.id+'\')">✏️</button> '+
+          '<button class="btn btn-primary btn-sm" onclick="openAddPayment(\''+s.id+'\')">💳</button> '+
+          '<button class="btn btn-red btn-sm" onclick="deleteStudent(\''+s.id+'\')">🗑️</button>'+
+        '</td>'+
+      '</tr>';
+    }).join('')+
+    '</tbody></table></div>'+
+    '<div style="font-size:11px;color:var(--text3);margin-top:8px;">Showing '+stus.length+' of '+S.students.length+' students</div>';
+}
+
+function openAddStudent() { showStudentModal(); }
+function openEditStudent(id) { showStudentModal(id); }
+function showStudentModal(id) {
+  var s = id ? getStudent(id) : null;
+  var autoAdm = s ? s.admNo : '';
+  var admHint = '<div style="font-size:10px;color:var(--text3);margin-top:3px;">Enter this student\'s admission number as used by the school.</div>';
+
+  showModal('stuModal', (s?'Edit':'Add')+' Student',
+    '<div class="form-grid">'+
+      '<div class="fg"><label>Full Name</label><input id="m-s-name" value="'+esc(s?s.name:'')+'"></div>'+
+      '<div class="fg">'+
+        '<label>Admission No.</label>'+
+        '<div style="display:flex;gap:6px;align-items:center;">'+
+          '<input id="m-s-adm" value="'+esc(autoAdm)+'" style="flex:1;" placeholder="e.g. ADM25/0001">'+
+        '</div>'+admHint+
+      '</div>'+
+      '<div class="fg"><label>Class</label><select id="m-s-cls">'+
+        '<option value="">-- Select --</option>'+
+        S.classes.map(function(c){ return '<option value="'+c.id+'"'+(s&&s.classId===c.id?' selected':'')+'>'+esc(c.name)+'</option>'; }).join('')+
+      '</select></div>'+
+      '<div class="fg"><label>Gender</label><select id="m-s-gender">'+
+        ['Male','Female','Other'].map(function(g){ return '<option'+(s&&s.gender===g?' selected':'')+'>'+g+'</option>'; }).join('')+
+      '</select></div>'+
+    '</div>'+
+    '<hr class="divider">'+
+    '<div style="font-size:10px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">Parent / Guardian Info</div>'+
+    '<div class="form-grid">'+
+      '<div class="fg"><label>Parent / Guardian Name</label><input id="m-s-pname" value="'+esc(s?s.parentName||'':'')+'"></div>'+
+      '<div class="fg"><label>Parent Phone <span style="color:var(--accent);font-size:9px;">(for SMS)</span></label>'+
+        '<input id="m-s-pphone" value="'+esc(s?s.parentPhone||'':'')+'" placeholder="e.g. 08012345678"></div>'+
+      '<div class="fg" style="grid-column:1/-1;"><label>Parent Email <span style="color:var(--green);font-size:9px;">(for Email notifications)</span></label>'+
+        '<input id="m-s-pemail" type="email" value="'+esc(s?s.parentEmail||'':'')+'" placeholder="parent@email.com"></div>'+
+    '</div>'+
+    '<hr class="divider">'+
+    '<div style="font-size:10px;color:var(--yellow);font-family:var(--mono);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">↩ Previous Balance (Manual Entry)</div>'+
+    '<div class="alert alert-warn" style="margin-bottom:10px;font-size:11px;">Use this to enter any outstanding balance from before the app was adopted. Subsequent terms, the system auto-carries forward unpaid balances.</div>'+
+    '<div class="form-grid">'+
+      '<div class="fg"><label>Previous Balance (₦) <span style="color:var(--yellow);font-size:9px;">optional</span></label>'+
+        '<input id="m-s-prevbal" type="number" min="0" value="'+(s&&s.prevBalance?s.prevBalance:0)+'" placeholder="0.00"></div>'+
+      '<div class="fg"><label>Previous Balance Note</label><input id="m-s-prevnote" value="'+esc(s&&s.prevNote?s.prevNote:'')+'" placeholder="e.g. Arrears from last school"></div>'+
+    '</div>',
+    function() {
+      var name = document.getElementById('m-s-name').value.trim();
+      var admNo = document.getElementById('m-s-adm').value.trim();
+      var classId = document.getElementById('m-s-cls').value;
+      var gender = document.getElementById('m-s-gender').value;
+      var parentName = document.getElementById('m-s-pname').value.trim();
+      var parentPhone = document.getElementById('m-s-pphone').value.trim();
+      var parentEmail = document.getElementById('m-s-pemail').value.trim();
+      var prevBalance = parseFloat(document.getElementById('m-s-prevbal').value)||0;
+      var prevNote = document.getElementById('m-s-prevnote').value.trim();
+      if(!name) return alert('Name is required.');
+      if(!admNo) return alert('Admission number is required.');
+      if(s) {
+        s.name=name; s.admNo=admNo; s.classId=classId; s.gender=gender;
+        s.parentName=parentName; s.parentPhone=parentPhone; s.parentEmail=parentEmail;
+        s.prevBalance=prevBalance; s.prevNote=prevNote;
+        // If prevBalance set, inject into active term's carriedForward so balance calc picks it up
+        if(prevBalance>0) {
+          var at = getActiveTerm();
+          if(at && !at.carriedForward) at.carriedForward = {};
+          if(at && !at.carriedForward[s.id]) at.carriedForward[s.id] = prevBalance;
+        }
+      } else {
+        var newStu = {id:uid(), name:name, admNo:admNo, classId:classId, gender:gender,
+          parentName:parentName, parentPhone:parentPhone, parentEmail:parentEmail,
+          prevBalance:prevBalance, prevNote:prevNote};
+        S.students.push(newStu);
+        // Inject previous balance into active term carriedForward
+        if(prevBalance > 0) {
+          var at = getActiveTerm();
+          if(at) { if(!at.carriedForward) at.carriedForward={}; at.carriedForward[newStu.id]=prevBalance; }
+        }
+      }
+      sv(); closeModal(); renderPage();
+    }
+  );
+}
+function deleteStudent(id) {
+  if(!confirm('Delete this student? Their payment records for ALL terms will be removed.')) return;
+  S.students = S.students.filter(function(s){return s.id!==id;});
+  Object.values(S.terms).forEach(function(t) {
+    t.payments = (t.payments||[]).filter(function(p){return p.studentId!==id;});
+    t.otherPayments = (t.otherPayments||[]).filter(function(p){return p.studentId!==id;});
+    if(t.carriedForward) delete t.carriedForward[id];
+  });
+  sv(); renderPage();
+}
+
+// ══════════════════════════════════════════════
+//  BULK STUDENT IMPORT (Excel)
+// ══════════════════════════════════════════════
+var BULK_IMPORT_HEADERS = ['Full Name','Admission No','Class','Gender','Parent Name','Parent Phone','Parent Email','Previous Balance','Previous Balance Note'];
+var _bulkImportStaged = [];
+
+function downloadBulkImportTemplate() {
+  if(!S.classes.length) { alert('Set up at least one class first (Classes & Fees), so you know what to type in the Class column.'); return; }
+  var sampleRow = ['John Doe','ADM25/0001', S.classes[0].name, 'Male','Mrs Jane Doe','08012345678','jane@example.com',0,''];
+  var aoa = [BULK_IMPORT_HEADERS, sampleRow];
+  var ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:20},{wch:16},{wch:14},{wch:10},{wch:20},{wch:16},{wch:24},{wch:16},{wch:22}];
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Students');
+  // Reference tab: every class currently set up in this school, exactly as it
+  // must be typed in the Class column — copy-paste safe, always up to date
+  // with whatever classes exist the moment this is downloaded.
+  var classAoa = [['Class Name — copy exactly into the Class column']].concat(
+    S.classes.map(function(c){ return [c.name]; })
+  );
+  var wsClasses = XLSX.utils.aoa_to_sheet(classAoa);
+  wsClasses['!cols'] = [{wch:30}];
+  XLSX.utils.book_append_sheet(wb, wsClasses, 'Valid Classes');
+  var arr = XLSX.write(wb, {type:'array', bookType:'xlsx'});
+  var bytes = Array.from(new Uint8Array(arr));
+  var fileName = 'Student_Bulk_Import_Template.xlsx';
+  if(isDesktopRuntime()) {
+    window.electronAPI.saveFile({defaultPath:fileName,filters:[{name:'Excel',extensions:['xlsx']}],data:bytes}).then(function(filePath){ if(filePath) showToast('✅ Template saved: '+filePath); }).catch(function(err){showToast('❌ Save failed: '+err,true);});
+  } else {
+    var blob=new Blob([arr],{type:'application/octet-stream'}); var url=URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download=fileName; a.click(); URL.revokeObjectURL(url);
+  }
+}
+
+function openBulkImport() {
+  _bulkImportStaged = [];
+  showModal('bulkModal', '📥 Bulk Import Students (Excel)',
+    '<div class="alert alert-info" style="margin-bottom:14px;">Download the template, fill in one row per student (Full Name, Admission No, and Class are required — Class must match an existing class name exactly), then upload it here. You\'ll see a preview before anything is saved.</div>'+
+    '<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">'+
+      '<button class="btn btn-ghost" onclick="downloadBulkImportTemplate()">⬇️ Download Template</button>'+
+      '<button class="btn btn-primary" onclick="document.getElementById(\'bulkFileInput\').click()">📂 Choose Excel File</button>'+
+      '<input type="file" id="bulkFileInput" accept=".xlsx,.xls,.csv" style="display:none;" onchange="handleBulkFileSelect(this)">'+
+    '</div>'+
+    '<div id="bulkPreviewArea"></div>',
+    function() {
+      if(!_bulkImportStaged.length) { alert('No valid students staged yet. Choose a file first, then check the preview.'); return; }
+      var count = _bulkImportStaged.length;
+      var at = getActiveTerm();
+      _bulkImportStaged.forEach(function(r){
+        var newStu = {id:uid(), name:r.name, admNo:r.admNo, classId:r.classId, gender:r.gender,
+          parentName:r.parentName, parentPhone:r.parentPhone, parentEmail:r.parentEmail,
+          prevBalance:r.prevBalance, prevNote:r.prevNote};
+        S.students.push(newStu);
+        if(r.prevBalance > 0 && at) {
+          if(!at.carriedForward) at.carriedForward = {};
+          at.carriedForward[newStu.id] = r.prevBalance;
+        }
+      });
+      sv(); closeModal(); renderPage();
+      showToast('✅ Imported '+count+' student'+(count===1?'':'s')+' successfully.');
+    }
+  );
+}
+
+function handleBulkFileSelect(inputEl) {
+  var file = inputEl.files[0]; if(!file) return;
+  var area = document.getElementById('bulkPreviewArea');
+  if(area) area.innerHTML = '<div style="color:var(--text3);font-size:12px;">Reading file…</div>';
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var data = new Uint8Array(e.target.result);
+      var wb = XLSX.read(data, {type:'array'});
+      var sheet = wb.Sheets[wb.SheetNames[0]];
+      var rows = XLSX.utils.sheet_to_json(sheet, {header:1, defval:''});
+      processBulkImportRows(rows);
+    } catch(err) {
+      if(area) area.innerHTML = '<div class="alert alert-warn" style="margin-top:10px;">❌ Could not read this file: '+esc(err.message)+'. Make sure it\'s a valid .xlsx/.xls/.csv file.</div>';
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function processBulkImportRows(rows) {
+  var dataRows = rows.slice(1).filter(function(r){ return r.some(function(c){return String(c||'').trim()!=='';}); });
+  if(!dataRows.length) {
+    document.getElementById('bulkPreviewArea').innerHTML = '<div class="alert alert-warn" style="margin-top:10px;">No data rows found below the header row.</div>';
+    return;
+  }
+  var existingAdmNos = {}; S.students.forEach(function(s){ existingAdmNos[String(s.admNo||'').trim().toLowerCase()]=true; });
+  var seenInFile = {};
+  var results = dataRows.map(function(r, idx) {
+    var name = String(r[0]||'').trim();
+    var admNo = String(r[1]||'').trim();
+    var className = String(r[2]||'').trim();
+    var gender = String(r[3]||'').trim();
+    var parentName = String(r[4]||'').trim();
+    var parentPhone = String(r[5]||'').trim();
+    var parentEmail = String(r[6]||'').trim();
+    var prevBalance = parseFloat(r[7])||0;
+    var prevNote = String(r[8]||'').trim();
+    var errors = [];
+    if(!name) errors.push('Missing name');
+    if(!admNo) errors.push('Missing admission no.');
+    else {
+      var key = admNo.toLowerCase();
+      if(existingAdmNos[key]) errors.push('Admission no. already in use');
+      else if(seenInFile[key]) errors.push('Duplicate admission no. in this file');
+      seenInFile[key] = true;
+    }
+    var cls = null;
+    if(!className) errors.push('Missing class');
+    else {
+      cls = S.classes.find(function(c){ return c.name.trim().toLowerCase() === className.toLowerCase(); });
+      if(!cls) errors.push('Class "'+className+'" not found');
+    }
+    if(gender) {
+      var g = gender.toLowerCase();
+      gender = (g==='m'||g==='male') ? 'Male' : (g==='f'||g==='female') ? 'Female' : 'Other';
+    }
+    return {
+      row: idx+2, name:name, admNo:admNo, className:className, classId: cls?cls.id:null,
+      gender:gender, parentName:parentName, parentPhone:parentPhone, parentEmail:parentEmail,
+      prevBalance:prevBalance, prevNote:prevNote, errors:errors, valid: errors.length===0
+    };
+  });
+  renderBulkImportPreview(results);
+}
+
+function renderBulkImportPreview(results) {
+  var valid = results.filter(function(r){return r.valid;});
+  var invalid = results.filter(function(r){return !r.valid;});
+  _bulkImportStaged = valid;
+  var area = document.getElementById('bulkPreviewArea'); if(!area) return;
+  var summary = '<div class="alert '+(invalid.length?'alert-warn':'alert-info')+'" style="margin:4px 0 12px;">'+
+    '<b>'+valid.length+' student'+(valid.length===1?'':'s')+' ready to import</b>'+
+    (invalid.length? ' — '+invalid.length+' row'+(invalid.length===1?'':'s')+' have errors and will be skipped (see below).':'')+
+    (valid.length? ' Click <b>Save</b> below to import.':'')+
+  '</div>';
+  var rowsHtml = results.map(function(r){
+    return '<tr>'+
+      '<td style="color:var(--text3);">'+r.row+'</td>'+
+      '<td>'+esc(r.name||'—')+'</td>'+
+      '<td>'+esc(r.admNo||'—')+'</td>'+
+      '<td>'+esc(r.className||'—')+'</td>'+
+      '<td>'+(r.valid?'<span class="badge badge-green">✅ OK</span>':'<span class="badge badge-red">❌ '+esc(r.errors.join('; '))+'</span>')+'</td>'+
+    '</tr>';
+  }).join('');
+  area.innerHTML = summary+'<div class="tbl-wrap" style="max-height:260px;overflow-y:auto;"><table>'+
+    '<thead><tr><th>Row</th><th>Name</th><th>Adm No</th><th>Class</th><th>Status</th></tr></thead><tbody>'+rowsHtml+'</tbody></table></div>';
+}
+
+// ══════════════════════════════════════════════
+//  PAYMENTS
+// ══════════════════════════════════════════════
+function renderPayments() {
+  var actions = document.getElementById('topbarActions');
+  actions.innerHTML = '<button class="btn btn-primary" onclick="openAddPayment()">+ Record Payment</button>';
+  var el = document.getElementById('content');
+  var html = '<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">'+
+    '<input id="paySearch" placeholder="🔍 Search student..." style="max-width:220px;" oninput="refreshPayTable()">'+
+    '<select id="payClass" style="max-width:160px;" onchange="refreshPayTable()">'+
+      '<option value="">All Classes</option>'+
+      S.classes.map(function(c){ return '<option value="'+c.id+'">'+esc(c.name)+'</option>'; }).join('')+
+    '</select>'+
+  '</div><div id="payTableWrap"></div>';
+  el.innerHTML = html;
+  refreshPayTable();
+}
+
+function refreshPayTable() {
+  var search = (document.getElementById('paySearch')||{}).value||'';
+  var cf = (document.getElementById('payClass')||{}).value||'';
+  var wrap = document.getElementById('payTableWrap'); if(!wrap) return;
+  var t = getViewingTerm();
+  var pays = (t.payments||[]).filter(function(p) {
+    var s = getStudent(p.studentId); if(!s) return false;
+    if(search && !s.name.toLowerCase().includes(search.toLowerCase())) return false;
+    if(cf && s.classId !== cf) return false;
+    return true;
+  }).sort(function(a,b){ return new Date(b.date)-new Date(a.date); });
+
+  if(!(t.payments||[]).length) { wrap.innerHTML = '<div class="card"><div class="empty"><div class="empty-icon">💳</div><div class="empty-text">No payments recorded for this term yet.</div></div></div>'; return; }
+  if(!pays.length) { wrap.innerHTML = '<div class="card"><div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">No matching payments.</div></div></div>'; return; }
+
+  wrap.innerHTML = '<div class="tbl-wrap"><table>'+
+    '<thead><tr><th>#</th><th>Date</th><th>Student</th><th>Class</th><th>Amount</th><th>Discount</th><th>Method</th><th>Note</th><th>Actions</th></tr></thead><tbody>'+
+    pays.map(function(p, i) {
+      var s = getStudent(p.studentId);
+      var cls = s ? getClass(s.classId) : null;
+      return '<tr>'+
+        '<td style="color:var(--text3);">'+(i+1)+'</td>'+
+        '<td style="font-family:var(--mono);font-size:11px;">'+esc(p.date||'—')+'</td>'+
+        '<td><b>'+esc(s?s.name:'—')+'</b></td>'+
+        '<td>'+esc(cls?cls.name:'—')+'</td>'+
+        '<td style="font-family:var(--mono);color:var(--green);">₦'+fmt(p.amount)+'</td>'+
+        '<td style="font-family:var(--mono);color:var(--yellow);">'+(p.discount>0?'− ₦'+fmt(p.discount):'—')+'</td>'+
+        '<td><span class="badge badge-blue">'+esc(p.method||'Cash')+'</span></td>'+
+        '<td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(p.note||'—')+'</td>'+
+        '<td><button class="btn btn-ghost btn-sm" onclick="showReceiptById(\''+p.id+'\')" title="View Receipt">🧾</button> '+
+          '<button class="btn btn-red btn-sm" onclick="deletePayment(\''+p.id+'\')">🗑️</button>'+
+        '</td>'+
+      '</tr>';
+    }).join('')+
+    '</tbody></table></div>'+
+    '<div style="font-size:11px;color:var(--text3);margin-top:8px;">'+pays.length+' payment records</div>';
+}
+
+function openAddPayment(sid) {
+  var stuOpts = S.students.map(function(s){
+    var cls = getClass(s.classId);
+    return '<option value="'+s.id+'"'+(sid&&s.id===sid?' selected':'')+'>'+esc(s.name)+(cls?' ('+esc(cls.name)+')':'')+'</option>';
+  }).join('');
+  showModal('payModal', 'Record Payment',
+    '<div class="form-grid" style="margin-bottom:12px;">'+
+      '<div class="fg" style="grid-column:1/-1;"><label>Student</label><select id="m-p-stu" onchange="updatePaymentFeePreview()">'+
+        '<option value="">-- Select Student --</option>'+stuOpts+'</select></div>'+
+      '<div class="fg" style="grid-column:1/-1;" id="m-p-fee-preview"></div>'+
+      '<div class="fg"><label>Amount Paid (₦)</label><input id="m-p-amt" type="number" placeholder="e.g. 15000" oninput="updatePaymentFeePreview()"></div>'+
+      '<div class="fg"><label>Discount (₦) <span style="color:var(--yellow);font-size:9px;">optional</span></label>'+
+        '<input id="m-p-discount" type="number" placeholder="e.g. 2000" min="0" oninput="updatePaymentFeePreview()">'+
+      '</div>'+
+      '<div class="fg"><label>Date</label><input id="m-p-date" type="date" value="'+new Date().toISOString().slice(0,10)+'"></div>'+
+      '<div class="fg"><label>Payment Method</label><select id="m-p-method">'+
+        ['Cash','Bank Transfer','POS','Cheque','Online'].map(function(m){ return '<option>'+m+'</option>'; }).join('')+
+      '</select></div>'+
+      '<div class="fg"><label>Discount Reason (optional)</label><input id="m-p-dreason" placeholder="e.g. Scholarship, Staff child..."></div>'+
+      '<div class="fg"><label>Note (optional)</label><input id="m-p-note" placeholder="Any remarks..."></div>'+
+    '</div>'+
+    '<hr class="divider">'+
+    '<div style="font-size:11px;color:var(--text3);margin-bottom:10px;font-family:var(--mono);">ADDITIONAL FEES <span style="color:var(--text3);font-weight:400;">(optional — one-off charges for this student, e.g. late fee, damage fee)</span></div>'+
+    '<div id="addfee-list"></div>'+
+    '<button class="btn btn-ghost btn-sm" onclick="addFeeChargeRow()">+ Add Charge</button>'+
+    '<datalist id="feeTypeSuggestions">'+S.paymentTypes.map(function(t){return '<option value="'+esc(t)+'">';}).join('')+'</datalist>',
+    function() {
+      var stuId = document.getElementById('m-p-stu').value;
+      var amt = parseFloat(document.getElementById('m-p-amt').value)||0;
+      var discount = parseFloat(document.getElementById('m-p-discount').value)||0;
+      var discountReason = document.getElementById('m-p-dreason').value.trim();
+      var date = document.getElementById('m-p-date').value;
+      var method = document.getElementById('m-p-method').value;
+      var note = document.getElementById('m-p-note').value.trim();
+      if(!stuId) return alert('Please select a student.');
+      if(!amt && !discount) return alert('Amount or discount is required.');
+      if(!date) return alert('Date is required.');
+      var chargeRows = document.querySelectorAll('#addfee-list .inst-row');
+      var newCharges = [];
+      var _payId = uid();
+      chargeRows.forEach(function(row) {
+        var cType = row.querySelector('.fee-type').value.trim();
+        var cAmt = parseFloat(row.querySelector('.fee-amt').value)||0;
+        if(cType && cAmt) newCharges.push({id:uid(), studentId:stuId, type:cType, amount:cAmt, date:date, paymentId:_payId});
+      });
+      // Remember any brand-new fee type names the school just typed, so they show
+      // as a suggestion next time (shared with the Other Payments types list).
+      newCharges.forEach(function(c){
+        if(S.paymentTypes.indexOf(c.type) === -1) S.paymentTypes.push(c.type);
+      });
+      var chargesSum = newCharges.reduce(function(a,c){return a+Number(c.amount||0);},0);
+      var remainingFee = studentBalance(stuId) + chargesSum;
+      if(discount > remainingFee + amt) return alert('Discount cannot exceed the remaining balance.');
+      var at = getViewingTerm();
+      if(!at.additionalCharges) at.additionalCharges = [];
+      newCharges.forEach(function(c){ at.additionalCharges.push(c); });
+      var _newPay = { id:_payId, receiptNo:genReceiptNo(), studentId:stuId, amount:amt, discount:discount, discountReason:discountReason, date:date, method:method, note:note };
+      if(!at.payments) at.payments = [];
+      at.payments.push(_newPay);
+      sv(); closeModal(); renderPage();
+      var _stu = getStudent(stuId);
+      var _cls = _stu ? getClass(_stu.classId) : null;
+      var _bal = _stu ? studentBalance(stuId) : 0;
+      sendSmsNotification(_newPay, _stu, _cls, _bal);
+      sendEmailNotification(_newPay, _stu, _cls, _bal);
+      setTimeout(function(){ showReceiptObj(_newPay); }, 60);
+    }
+  );
+  if(sid) { setTimeout(function(){ var el=document.getElementById('m-p-stu'); if(el) el.value=sid; updatePaymentFeePreview(); },50); }
+}
+
+function updatePaymentFeePreview() {
+  var stuId = (document.getElementById('m-p-stu')||{}).value||'';
+  var amt = parseFloat((document.getElementById('m-p-amt')||{}).value)||0;
+  var disc = parseFloat((document.getElementById('m-p-discount')||{}).value)||0;
+  var preview = document.getElementById('m-p-fee-preview'); if(!preview) return;
+  if(!stuId) { preview.innerHTML = ''; return; }
+  var stu = getStudent(stuId); if(!stu) { preview.innerHTML = ''; return; }
+  var fee = studentFee(stuId);
+  var cf = studentCarriedForward(stuId);
+  var savedCharges = studentAdditionalCharges(stuId);
+  var stagedCharges = 0;
+  document.querySelectorAll('#addfee-list .inst-row').forEach(function(row){
+    stagedCharges += parseFloat((row.querySelector('.fee-amt')||{}).value)||0;
+  });
+  var alreadyPaid = studentTotalPaid(stuId);
+  var alreadyDiscount = studentTotalDiscount(stuId);
+  var currentBal = (fee + cf + savedCharges + stagedCharges) - alreadyPaid - alreadyDiscount;
+  var newBal = Math.max(0, currentBal - amt - disc);
+  var balColor = newBal === 0 ? '#00e5a0' : newBal < currentBal ? '#ffd166' : '#ff4d6a';
+  preview.innerHTML =
+    '<div style="background:var(--surface3);border:1px solid var(--border2);border-radius:8px;padding:10px 14px;font-size:11px;">'+
+      '<div style="display:flex;justify-content:space-between;margin-bottom:5px;"><span style="color:var(--text3);">Class Fee</span><span style="font-family:var(--mono);">₦'+fmt(fee)+'</span></div>'+
+      (cf>0?'<div style="display:flex;justify-content:space-between;margin-bottom:5px;"><span style="color:#ff8c42;">Carried Forward</span><span style="font-family:var(--mono);color:#ff8c42;">+ ₦'+fmt(cf)+'</span></div>':'')+
+      (savedCharges>0?'<div style="display:flex;justify-content:space-between;margin-bottom:5px;"><span style="color:#c792ea;">Additional Fees (previously added)</span><span style="font-family:var(--mono);color:#c792ea;">+ ₦'+fmt(savedCharges)+'</span></div>':'')+
+      (stagedCharges>0?'<div style="display:flex;justify-content:space-between;margin-bottom:5px;"><span style="color:#c792ea;">Additional Fees (new, below)</span><span style="font-family:var(--mono);color:#c792ea;">+ ₦'+fmt(stagedCharges)+'</span></div>':'')+
+      '<div style="display:flex;justify-content:space-between;margin-bottom:5px;"><span style="color:var(--text3);">Already Paid</span><span style="font-family:var(--mono);color:var(--green);">− ₦'+fmt(alreadyPaid)+'</span></div>'+
+      (alreadyDiscount>0?'<div style="display:flex;justify-content:space-between;margin-bottom:5px;"><span style="color:var(--text3);">Previous Discounts</span><span style="font-family:var(--mono);color:var(--yellow);">− ₦'+fmt(alreadyDiscount)+'</span></div>':'')+
+      (disc>0?'<div style="display:flex;justify-content:space-between;margin-bottom:5px;"><span style="color:var(--yellow);">This Discount</span><span style="font-family:var(--mono);color:var(--yellow);">− ₦'+fmt(disc)+'</span></div>':'')+
+      '<div style="border-top:1px solid var(--border);margin-top:5px;padding-top:6px;display:flex;justify-content:space-between;">'+
+        '<span style="color:var(--text2);font-weight:600;">New Balance</span>'+
+        '<span style="font-family:var(--mono);font-weight:700;color:'+balColor+';">₦'+fmt(newBal)+(newBal===0?' ✅':'')+'</span>'+
+      '</div>'+
+    '</div>';
+}
+
+function addFeeChargeRow() {
+  var list = document.getElementById('addfee-list'); if(!list) return;
+  var row = document.createElement('div'); row.className = 'inst-row';
+  row.innerHTML = '<input class="fee-type" list="feeTypeSuggestions" placeholder="Fee type — type new or pick existing" style="max-width:220px;">'+
+    '<input class="fee-amt" type="number" placeholder="Amount ₦" style="max-width:140px;" oninput="updatePaymentFeePreview()">'+
+    '<button class="btn btn-red btn-sm" onclick="this.parentNode.remove();updatePaymentFeePreview();">✕</button>';
+  list.appendChild(row);
+  updatePaymentFeePreview();
+}
+
+function deletePayment(id) {
+  if(!confirm('Delete this payment record?')) return;
+  var t = getViewingTerm();
+  t.payments = (t.payments||[]).filter(function(p){return p.id!==id;});
+  sv(); renderPage();
+}
+
+// Find a payment across ALL terms by id
+function findPaymentById(id) {
+  var found = null;
+  Object.values(S.terms).forEach(function(t) {
+    var p = (t.payments||[]).find(function(p){return p.id===id;});
+    if(p) found = p;
+  });
+  return found;
+}
+
+function showReceiptById(id) {
+  var p = findPaymentById(id);
+  if(p) showReceiptObj(p);
+}
+
+// ══════════════════════════════════════════════
+//  INSTALMENTS
+// ══════════════════════════════════════════════
+//  OTHER PAYMENTS
+// ══════════════════════════════════════════════
+function renderOtherPayments() {
+  var actions = document.getElementById('topbarActions');
+  actions.innerHTML = '<button class="btn btn-ghost btn-sm" onclick="managePayTypes()">⚙️ Types</button> <button class="btn btn-primary" onclick="openAddOtherPay()">+ Record Payment</button>';
+  var el = document.getElementById('content');
+  var t = getViewingTerm();
+  var byType = {};
+  (t.otherPayments||[]).forEach(function(p){ byType[p.type]=(byType[p.type]||0)+Number(p.amount||0); });
+  var typesSummary = Object.keys(byType).map(function(k){ return '<span class="badge badge-purple" style="margin-right:6px;">'+esc(k)+': ₦'+fmt(byType[k])+'</span>'; }).join('');
+  var html = (typesSummary?'<div style="margin-bottom:14px;">'+typesSummary+'</div>':'')+
+    '<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">'+
+      '<select id="opTypeFilter" style="max-width:180px;" onchange="refreshOtherPayTable()">'+
+        '<option value="">All Types</option>'+
+        S.paymentTypes.map(function(t){ return '<option>'+esc(t)+'</option>'; }).join('')+
+      '</select>'+
+      '<input id="opSearch" placeholder="🔍 Search student..." style="max-width:200px;" oninput="refreshOtherPayTable()">'+
+    '</div><div id="opTableWrap"></div>';
+  el.innerHTML = html;
+  refreshOtherPayTable();
+}
+
+function refreshOtherPayTable() {
+  var tf = (document.getElementById('opTypeFilter')||{}).value||'';
+  var search = (document.getElementById('opSearch')||{}).value||'';
+  var wrap = document.getElementById('opTableWrap'); if(!wrap) return;
+  var t = getViewingTerm();
+  var pays = (t.otherPayments||[]).filter(function(p) {
+    var s = getStudent(p.studentId);
+    if(tf && p.type !== tf) return false;
+    if(search && s && !s.name.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  }).sort(function(a,b){ return new Date(b.date)-new Date(a.date); });
+  if(!(t.otherPayments||[]).length) { wrap.innerHTML = '<div class="card"><div class="empty"><div class="empty-icon">📦</div><div class="empty-text">No other payments for this term.</div></div></div>'; return; }
+  if(!pays.length) { wrap.innerHTML = '<div class="card"><div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">No matching records.</div></div></div>'; return; }
+  wrap.innerHTML = '<div class="tbl-wrap"><table>'+
+    '<thead><tr><th>#</th><th>Date</th><th>Student</th><th>Type</th><th>Amount</th><th>Note</th><th>Actions</th></tr></thead><tbody>'+
+    pays.map(function(p,i) {
+      var s = getStudent(p.studentId); var cls = s ? getClass(s.classId) : null;
+      return '<tr><td style="color:var(--text3);">'+(i+1)+'</td><td style="font-family:var(--mono);font-size:11px;">'+esc(p.date||'—')+'</td>'+
+        '<td><b>'+esc(s?s.name:'—')+'</b><br><span style="font-size:10px;color:var(--text3);">'+esc(cls?cls.name:'')+'</span></td>'+
+        '<td><span class="ptype-pill">'+esc(p.type)+'</span></td>'+
+        '<td style="font-family:var(--mono);color:var(--yellow);">₦'+fmt(p.amount)+'</td>'+
+        '<td>'+esc(p.note||'—')+'</td>'+
+        '<td><button class="btn btn-red btn-sm" onclick="deleteOtherPay(\''+p.id+'\')">🗑️</button></td></tr>';
+    }).join('')+'</tbody></table></div>'+
+    '<div style="font-size:11px;color:var(--text3);margin-top:8px;">'+pays.length+' records</div>';
+}
+
+function openAddOtherPay() {
+  var stuOpts = S.students.map(function(s){ var cls = getClass(s.classId); return '<option value="'+s.id+'">'+esc(s.name)+(cls?' ('+esc(cls.name)+')':'')+'</option>'; }).join('');
+  showModal('opModal', 'Record Other Payment',
+    '<div class="form-grid">'+
+      '<div class="fg" style="grid-column:1/-1;"><label>Student</label><select id="m-op-stu"><option value="">-- Select Student --</option>'+stuOpts+'</select></div>'+
+      '<div class="fg"><label>Payment Type</label><select id="m-op-type">'+S.paymentTypes.map(function(t){ return '<option>'+esc(t)+'</option>'; }).join('')+'</select></div>'+
+      '<div class="fg"><label>Amount (₦)</label><input id="m-op-amt" type="number" placeholder="e.g. 5000"></div>'+
+      '<div class="fg"><label>Date</label><input id="m-op-date" type="date" value="'+new Date().toISOString().slice(0,10)+'"></div>'+
+      '<div class="fg"><label>Note (optional)</label><input id="m-op-note" placeholder="Any remarks..."></div>'+
+    '</div>',
+    function() {
+      var stuId = document.getElementById('m-op-stu').value;
+      var type = document.getElementById('m-op-type').value;
+      var amt = parseFloat(document.getElementById('m-op-amt').value)||0;
+      var date = document.getElementById('m-op-date').value;
+      var note = document.getElementById('m-op-note').value.trim();
+      if(!stuId) return alert('Please select a student.');
+      if(!amt) return alert('Amount is required.');
+      if(!date) return alert('Date is required.');
+      var at = getViewingTerm(); if(!at.otherPayments) at.otherPayments=[];
+      at.otherPayments.push({id:uid(), studentId:stuId, type:type, amount:amt, date:date, note:note});
+      sv(); closeModal(); renderPage();
+    }
+  );
+}
+function deleteOtherPay(id) {
+  if(!confirm('Delete this record?')) return;
+  var t = getViewingTerm();
+  t.otherPayments = (t.otherPayments||[]).filter(function(p){return p.id!==id;});
+  sv(); renderPage();
+}
+function managePayTypes() {
+  showModal('ptModal', '⚙️ Payment Types',
+    '<div class="alert alert-info" style="margin-bottom:12px;">These types appear when recording other payments.</div>'+
+    '<div id="pt-list">'+S.paymentTypes.map(function(t){ return '<div class="inst-row"><input class="pt-inp" value="'+esc(t)+'"><button class="btn btn-red btn-sm" onclick="this.parentNode.remove()">✕</button></div>'; }).join('')+'</div>'+
+    '<button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="addPtRow()">+ Add Type</button>',
+    function() {
+      var vals = []; document.querySelectorAll('.pt-inp').forEach(function(el){ var v=el.value.trim(); if(v) vals.push(v); });
+      S.paymentTypes = vals; sv(); closeModal(); renderPage();
+    }
+  );
+}
+function addPtRow() {
+  var list = document.getElementById('pt-list'); if(!list) return;
+  var row = document.createElement('div'); row.className = 'inst-row';
+  row.innerHTML = '<input class="pt-inp" placeholder="e.g. Sports Levy"><button class="btn btn-red btn-sm" onclick="this.parentNode.remove()">✕</button>';
+  list.appendChild(row);
+}
+
+// ══════════════════════════════════════════════
+//  CLASS ANALYSIS
+// ══════════════════════════════════════════════
+var _caFilter = '';
+function renderClassAnalysis() {
+  var el = document.getElementById('content');
+  if(!S.classes.length) { el.innerHTML = '<div class="card"><div class="empty"><div class="empty-icon">🏫</div><div class="empty-text">No classes set up yet.</div></div></div>'; return; }
+  var filterBar = '<div class="class-filter-bar">'+
+    '<span style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-right:4px;">FILTER:</span>'+
+    '<button class="class-filter-btn'+(_caFilter===''?' active':'')+'" onclick="_caFilter=\'\';renderClassAnalysis()">All Classes</button>'+
+    S.classes.map(function(cls){ return '<button class="class-filter-btn'+(_caFilter===cls.id?' active':'')+'" onclick="_caFilter=\''+cls.id+'\';renderClassAnalysis()">'+esc(cls.name)+'</button>'; }).join('')+
+  '</div>';
+  var visibleClasses = _caFilter ? S.classes.filter(function(c){ return c.id===_caFilter; }) : S.classes;
+  var t = getViewingTerm();
+  el.innerHTML = filterBar + visibleClasses.map(function(cls) {
+    var stus = classStudents(cls.id);
+    var totalExp = stus.reduce(function(a,s){ return a+studentFee(s.id)+studentCarriedForward(s.id); }, 0);
+    var totalPaid = stus.reduce(function(a,s){ return a+studentTotalPaid(s.id); }, 0);
+    var paidStus = stus.filter(function(s){ return hasPaid(s.id); });
+    var partialStus = stus.filter(function(s){ var p=studentTotalPaid(s.id); return p>0&&!hasPaid(s.id); });
+    var unpaidStus = stus.filter(function(s){ return studentTotalPaid(s.id)===0; });
+    var debtAmt = stus.reduce(function(a,s){ return a+Math.max(0,studentBalance(s.id)); }, 0);
+    var collPct = pct(totalPaid, totalExp);
+    return '<div class="card">'+
+      '<div class="card-head"><span style="font-size:15px;">🏫 '+esc(cls.name)+'</span><span style="font-size:12px;font-family:var(--mono);color:var(--text3);">Fee: ₦'+fmt(cls.fee)+'/student</span></div>'+
+      '<div class="stats-grid" style="margin-bottom:16px;">'+
+        '<div class="stat-card blue" style="padding:14px;"><div class="stat-label">Students</div><div class="stat-value" style="font-size:18px;">'+stus.length+'</div></div>'+
+        '<div class="stat-card green" style="padding:14px;"><div class="stat-label">Collected</div><div class="stat-value" style="font-size:16px;">₦'+fmt(totalPaid)+'</div></div>'+
+        '<div class="stat-card red" style="padding:14px;"><div class="stat-label">Outstanding</div><div class="stat-value" style="font-size:16px;">₦'+fmt(debtAmt)+'</div></div>'+
+        '<div class="stat-card yellow" style="padding:14px;"><div class="stat-label">Rate</div><div class="stat-value" style="font-size:18px;">'+collPct+'%</div></div>'+
+      '</div>'+
+      '<div style="display:flex;gap:16px;margin-bottom:14px;flex-wrap:wrap;">'+
+        '<div><span class="badge badge-green">✅ Fully Paid: '+paidStus.length+'</span></div>'+
+        '<div><span class="badge badge-yellow">⏳ Partial: '+partialStus.length+'</span></div>'+
+        '<div><span class="badge badge-red">❌ Unpaid: '+unpaidStus.length+'</span></div>'+
+      '</div>'+
+      '<div class="progress-wrap" style="height:10px;margin-bottom:14px;"><div class="progress-bar pb-green" style="width:'+collPct+'%;"></div></div>'+
+      (stus.length ? '<div class="tbl-wrap"><table>'+
+        '<thead><tr><th>Student</th><th>Adm No.</th><th>Fee</th><th>C/F Debt</th><th>Paid</th><th>Balance</th><th>Status</th><th>Receipt</th></tr></thead><tbody>'+
+        stus.map(function(s) {
+          var fee=studentFee(s.id), cf=studentCarriedForward(s.id), paid=studentTotalPaid(s.id), bal=studentBalance(s.id);
+          var st=hasPaid(s.id)?'<span class="badge badge-green">PAID</span>':paid>0?'<span class="badge badge-yellow">PARTIAL</span>':'<span class="badge badge-red">UNPAID</span>';
+          var stuPays = (t.payments||[]).filter(function(p){return p.studentId===s.id;}).sort(function(a,b){return new Date(b.date)-new Date(a.date);});
+          var lp = stuPays[0];
+          return '<tr><td><b>'+esc(s.name)+'</b></td>'+
+            '<td style="font-family:var(--mono);font-size:11px;">'+esc(s.admNo)+'</td>'+
+            '<td style="font-family:var(--mono);">₦'+fmt(fee)+'</td>'+
+            '<td style="font-family:var(--mono);color:#ff8c42;">'+(cf>0?'₦'+fmt(cf):'—')+'</td>'+
+            '<td style="font-family:var(--mono);color:var(--green);">₦'+fmt(paid)+'</td>'+
+            '<td style="font-family:var(--mono);color:'+(bal>0?'var(--red)':'var(--green)')+';">₦'+fmt(bal)+'</td>'+
+            '<td>'+st+'</td>'+
+            '<td>'+(lp?'<button class="btn btn-ghost btn-sm" onclick="showReceiptById(\''+lp.id+'\')">🧾</button>':'<span style="color:var(--text3);font-size:11px;">—</span>')+'</td>'+
+          '</tr>';
+        }).join('')+'</tbody></table></div>' : '<div style="color:var(--text3);font-size:12px;">No students in this class.</div>')+
+    '</div>';
+  }).join('');
+}
+
+// ══════════════════════════════════════════════
+//  DEBTORS
+// ══════════════════════════════════════════════
+function renderDebtors() {
+  var el = document.getElementById('content');
+  var actions = document.getElementById('topbarActions'); actions.innerHTML = '';
+  var debtors = S.students.filter(function(s){ return studentBalance(s.id) > 0; })
+    .sort(function(a,b){ return studentBalance(b.id)-studentBalance(a.id); });
+  var totalOwed = debtors.reduce(function(a,s){ return a+studentBalance(s.id); }, 0);
+  if(!debtors.length) { el.innerHTML = '<div class="alert alert-success" style="font-size:14px;padding:20px;">🎉 No debtors! All students have fully paid their fees.</div>'; return; }
+  el.innerHTML =
+    '<div class="stats-grid" style="margin-bottom:18px;">'+
+      statCard('red','⚠️','Total Debtors', debtors.length, 'Students with outstanding balance','')+
+      statCard('red','💸','Total Amount Owed', '₦'+fmt(totalOwed), 'Across all debtors','')+
+      statCard('blue','📊','Debtor Rate', pct(debtors.length,S.students.length)+'%', 'Of total students','')+
+    '</div>'+
+    '<div class="card">'+
+      '<div class="card-head">⚠️ Debtors List</div>'+
+      '<div class="tbl-wrap"><table>'+
+        '<thead><tr><th>#</th><th>Student</th><th>Adm No</th><th>Class</th><th>This Term Fee</th><th>C/F Debt</th><th>Total Due</th><th>Paid</th><th>Balance</th><th>% Paid</th><th>Action</th></tr></thead><tbody>'+
+        debtors.map(function(s,i) {
+          var cls = getClass(s.classId);
+          var fee=studentFee(s.id), cf=studentCarriedForward(s.id), paid=studentTotalPaid(s.id), bal=studentBalance(s.id), totalDue=fee+cf;
+          var p = pct(paid,totalDue);
+          return '<tr>'+
+            '<td style="color:var(--text3);">'+(i+1)+'</td>'+
+            '<td><b>'+esc(s.name)+'</b></td>'+
+            '<td style="font-family:var(--mono);font-size:11px;">'+esc(s.admNo)+'</td>'+
+            '<td>'+esc(cls?cls.name:'—')+'</td>'+
+            '<td style="font-family:var(--mono);">₦'+fmt(fee)+'</td>'+
+            '<td style="font-family:var(--mono);color:#ff8c42;">'+(cf>0?'↩ ₦'+fmt(cf):'—')+'</td>'+
+            '<td style="font-family:var(--mono);font-weight:600;">₦'+fmt(totalDue)+'</td>'+
+            '<td style="font-family:var(--mono);color:var(--green);">₦'+fmt(paid)+'</td>'+
+            '<td style="font-family:var(--mono);color:var(--red);font-weight:700;">₦'+fmt(bal)+'</td>'+
+            '<td><span class="badge '+(parseFloat(p)>=70?'badge-yellow':parseFloat(p)>=30?'badge-yellow':'badge-red')+'">'+p+'%</span></td>'+
+            '<td><button class="btn btn-primary btn-sm" onclick="openAddPayment(\''+s.id+'\')">💳 Pay</button></td>'+
+          '</tr>';
+        }).join('')+
+      '</tbody></table></div>'+
+    '</div>';
+}
+
+// ══════════════════════════════════════════════
+//  SMS ENGINE — BulkSMSNigeria
+// ══════════════════════════════════════════════
+function sendSmsNotification(payment, student, cls, balance) {
+  if(!S.sms || !S.sms.enabled) return;
+  if(!S.sms.apiToken) return;
+  if(!student || !student.parentPhone) return;
+  var phone = student.parentPhone.replace(/\s+/g,'').replace(/^\+/,'');
+  if(phone.startsWith('0')) phone = '234' + phone.slice(1);
+  var isPaid = balance <= 0 && studentFee(student.id) > 0;
+  var msg = 'Dear '+(student.parentName||'Parent')+', payment of N'+fmt(payment.amount)+' received for '+student.name+' ('+student.admNo+') on '+payment.date+' via '+payment.method+'. '+(isPaid?'Fees fully paid. Thank you!':'Outstanding balance: N'+fmt(Math.max(0,balance))+'. Please pay soon.')+' - '+S.school.name;
+  if(!S.sms.log) S.sms.log = [];
+  var logEntry = {id:uid(), studentId:student.id, phone:phone, msg:msg, date:new Date().toISOString(), status:'sending'};
+  S.sms.log.unshift(logEntry); sv();
+  fetch('https://www.bulksmsnigeria.com/api/v2/sms', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+    body: JSON.stringify({
+      api_token: S.sms.apiToken,
+      from: S.sms.senderId || 'SCHALERT',
+      to: phone,
+      body: msg,
+      dnd: 2
+    })
+  }).then(function(r){return r.json();})
+    .then(function(data){
+      logEntry.status = (data.data && data.data.message_id) ? 'sent' : 'failed';
+      logEntry.response = JSON.stringify(data).slice(0,120);
+      sv();
+    }).catch(function(err){logEntry.status='failed';logEntry.response=err.message;sv();});
+}
+
+// ══════════════════════════════════════════════
+//  EMAIL ENGINE — Native SMTP (via Tauri backend)
+// ══════════════════════════════════════════════
+function emailBrandStyle() {
+  return 'font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#1a1a2e;';
+}
+
+function buildPaymentEmailHtml(opts) {
+  // opts: {parentName, studentName, admNo, className, schoolName, termLabel, feeItemsHtml, totalFees, amountPaid, paymentDate, paymentMethod, receiptNo, outstandingBalance, statusLine, isPaid}
+  return ''+
+  '<div style="'+emailBrandStyle()+'">'+
+    '<div style="background:#0f172a;color:#fff;padding:20px 24px;border-radius:8px 8px 0 0;">'+
+      '<div style="font-size:18px;font-weight:700;">'+esc(opts.schoolName)+'</div>'+
+      '<div style="font-size:12px;opacity:0.75;">'+esc(opts.termLabel||'')+'</div>'+
+    '</div>'+
+    '<div style="background:#f7f8fa;padding:20px 24px;">'+
+      '<p style="margin:0 0 12px;">Dear '+esc(opts.parentName)+',</p>'+
+      '<p style="margin:0 0 16px;">Payment of <b>N'+fmt(opts.amountPaid)+'</b> has been received for <b>'+esc(opts.studentName)+'</b> ('+esc(opts.admNo)+') — '+esc(opts.className||'')+'.</p>'+
+      (opts.feeItemsHtml ? '<table style="width:100%;border-collapse:collapse;background:#fff;border-radius:6px;overflow:hidden;margin-bottom:14px;">'+opts.feeItemsHtml+'</table>' : '')+
+      '<table style="width:100%;font-size:13px;margin-bottom:16px;">'+
+        '<tr><td style="padding:4px 0;color:#555;">Payment Date</td><td style="text-align:right;">'+esc(opts.paymentDate)+'</td></tr>'+
+        '<tr><td style="padding:4px 0;color:#555;">Payment Method</td><td style="text-align:right;">'+esc(opts.paymentMethod)+'</td></tr>'+
+        '<tr><td style="padding:4px 0;color:#555;">Receipt No.</td><td style="text-align:right;">'+esc(opts.receiptNo)+'</td></tr>'+
+      '</table>'+
+      '<div style="background:'+(opts.isPaid?'#e6faf3':'#fff4e5')+';border-radius:6px;padding:12px 16px;text-align:center;font-weight:700;color:'+(opts.isPaid?'#00805a':'#a35a00')+';">'+esc(opts.statusLine)+'</div>'+
+    '</div>'+
+    '<div style="padding:14px 24px;text-align:center;font-size:11px;color:#888;">This is an automated message from '+esc(opts.schoolName)+'. No reply needed.</div>'+
+  '</div>';
+}
+
+function isDesktopRuntime() {
+  return !!(window.electronAPI && window.electronAPI.isDesktop);
+}
+
+function sendEmailNotification(payment, student, cls, balance) {
+  if(!S.email || !S.email.enabled) return;
+  if(!S.email.smtpHost || !S.email.fromEmail || !S.email.appPassword) return;
+  if(!student || !student.parentEmail) return;
+  if(!isDesktopRuntime()) { showDebugToast('Email sending needs the desktop app — not available while testing in a browser.'); return; }
+
+  var totalOwed = studentFee(student.id) + studentCarriedForward(student.id) + studentAdditionalCharges(student.id);
+  var isPaid = balance <= 0 && totalOwed > 0;
+  var termKey = S.activeTerm;
+  var feeItems = getFeeItemsForClass(student.classId, termKey);
+  var feeItemsHtml = feeItems.map(function(f){
+    return '<tr><td style="padding:6px 12px;border-bottom:1px solid #eee;">'+esc(f.name)+'</td><td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:right;">N'+fmt(f.amount)+'</td></tr>';
+  }).join('');
+  var thisPaymentCharges = paymentAdditionalCharges(payment.id);
+  if(thisPaymentCharges.length) {
+    feeItemsHtml += thisPaymentCharges.map(function(c){
+      return '<tr><td style="padding:6px 12px;border-bottom:1px solid #eee;color:#7c5cd6;">➕ '+esc(c.type)+' (added)</td><td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:right;color:#7c5cd6;">N'+fmt(c.amount)+'</td></tr>';
+    }).join('');
+  }
+
+  var bodyHtml = buildPaymentEmailHtml({
+    parentName: student.parentName || 'Parent',
+    studentName: student.name,
+    admNo: student.admNo,
+    className: cls ? cls.name : '',
+    schoolName: S.school.name,
+    termLabel: getActiveTerm() ? getActiveTerm().label : '',
+    feeItemsHtml: feeItemsHtml,
+    amountPaid: payment.amount,
+    paymentDate: payment.date,
+    paymentMethod: payment.method || 'Cash',
+    receiptNo: payment.receiptNo || '',
+    isPaid: isPaid,
+    statusLine: isPaid ? 'Fees Fully Paid ✓' : 'Outstanding Balance: N'+fmt(Math.max(0,balance))
+  });
+
+  if(!S.email.log) S.email.log = [];
+  var logEntry = {id:uid(), studentId:student.id, email:student.parentEmail, date:new Date().toISOString(), status:'sending'};
+  S.email.log.unshift(logEntry); sv();
+
+  window.electronAPI.sendEmail({
+    smtpHost: S.email.smtpHost,
+    smtpPort: Number(S.email.smtpPort) || 587,
+    fromEmail: S.email.fromEmail,
+    fromName: S.email.fromName || S.school.name,
+    appPassword: S.email.appPassword,
+    toEmail: student.parentEmail,
+    subject: 'Fee Payment Notification — '+student.name,
+    bodyHtml: bodyHtml
+  }).then(function(){
+    logEntry.status = 'sent'; sv();
+    showToast('📧 Email sent to '+student.parentEmail);
+  }).catch(function(err){
+    logEntry.status = 'failed'; logEntry.response = String(err).slice(0,180); sv();
+    showDebugToast('SMTP send failed: '+err);
+  });
+}
+
+function sendFeeNoticeToAll() {
+  // Send itemized fee notice to ALL parents for current term
+  if(!S.email || !S.email.enabled || !S.email.smtpHost || !S.email.fromEmail || !S.email.appPassword) {
+    showToast('❌ Email not configured. Go to Settings to set up your SMTP email.', true); return;
+  }
+  if(!isDesktopRuntime()) { showDebugToast('Email sending needs the desktop app — not available while testing in a browser.'); return; }
+  var termKey = S.activeTerm;
+  var sent = 0, failed = 0, total = 0, idx = 0;
+  if(!S.email.log) S.email.log = [];
+  S.students.forEach(function(student) {
+    if(!student.parentEmail) return;
+    total++;
+    var cls = getClass(student.classId);
+    var feeItems = getFeeItemsForClass(student.classId, termKey);
+    var feeItemsHtml = feeItems.map(function(f){
+      return '<tr><td style="padding:6px 12px;border-bottom:1px solid #eee;">'+esc(f.name)+'</td><td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:right;">N'+fmt(f.amount)+'</td></tr>';
+    }).join('');
+    var totalFees = feeItems.reduce(function(a,f){return a+Number(f.amount||0);},0);
+    var cf = studentCarriedForward(student.id);
+    var studentCharges = getViewingTerm().additionalCharges ? getViewingTerm().additionalCharges.filter(function(c){return c.studentId===student.id;}) : [];
+    var chargesTotal = studentCharges.reduce(function(a,c){return a+Number(c.amount||0);},0);
+    if(studentCharges.length) {
+      feeItemsHtml += studentCharges.map(function(c){
+        return '<tr><td style="padding:6px 12px;border-bottom:1px solid #eee;color:#7c5cd6;">➕ '+esc(c.type)+'</td><td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:right;color:#7c5cd6;">N'+fmt(c.amount)+'</td></tr>';
+      }).join('');
+    }
+    var bodyHtml = buildPaymentEmailHtml({
+      parentName: student.parentName || 'Parent',
+      studentName: student.name,
+      admNo: student.admNo,
+      className: cls ? cls.name : '',
+      schoolName: S.school.name,
+      termLabel: getActiveTerm() ? getActiveTerm().label : '',
+      feeItemsHtml: feeItemsHtml || ('<tr><td style="padding:6px 12px;">Tuition Fee</td><td style="padding:6px 12px;text-align:right;">N'+fmt(cls?cls.fee:0)+'</td></tr>'),
+      amountPaid: 0,
+      paymentDate: '—',
+      paymentMethod: '—',
+      receiptNo: '—',
+      isPaid: false,
+      statusLine: 'Fee Notice — Total Due: N'+fmt(totalFees + cf + chargesTotal)
+    });
+    setTimeout(function() {
+      var logEntry = {id:uid(), studentId:student.id, email:student.parentEmail, date:new Date().toISOString(), status:'sending'};
+      S.email.log.unshift(logEntry); sv();
+      window.electronAPI.sendEmail({
+        smtpHost: S.email.smtpHost,
+        smtpPort: Number(S.email.smtpPort) || 587,
+        fromEmail: S.email.fromEmail,
+        fromName: S.email.fromName || S.school.name,
+        appPassword: S.email.appPassword,
+        toEmail: student.parentEmail,
+        subject: 'Fee Notice — '+(getActiveTerm()?getActiveTerm().label:''),
+        bodyHtml: bodyHtml
+      }).then(function(){ logEntry.status='sent'; sent++; sv(); })
+        .catch(function(err){ logEntry.status='failed'; logEntry.response=String(err).slice(0,180); failed++; sv(); });
+    }, idx * 600);
+    idx++;
+  });
+  showToast('📧 Sending fee notices to '+total+' parents… check Settings → Email Log shortly for results.');
+}
+
+// ══════════════════════════════════════════════
+//  FEE SETUP ENGINE
+// ══════════════════════════════════════════════
+function getFeeItemsForClass(classId, termKey) {
+  if(!S.feeSetup) return [];
+  var key = classId + '_' + (termKey || S.activeTerm);
+  var items = S.feeSetup[key];
+  if(!items || !items.length) {
+    // Fallback: return tuition only from class fee
+    var cls = getClass(classId);
+    return cls ? [{id:'tuition',name:'Tuition Fee',amount:cls.fee||0,required:true}] : [];
+  }
+  return items;
+}
+
+function getTotalFeeForStudent(sid) {
+  var stu = getStudent(sid); if(!stu) return 0;
+  var items = getFeeItemsForClass(stu.classId, S.activeTerm);
+  return items.reduce(function(a,f){return a+Number(f.amount||0);},0);
+}
+
+function renderFeeSetup() {
+  var el = document.getElementById('content');
+  var actions = document.getElementById('topbarActions');
+  actions.innerHTML = '<button class="btn btn-primary" onclick="sendFeeNoticeToAll()">📧 Send Fee Notice to All Parents</button>';
+
+  if(!S.classes.length) {
+    el.innerHTML = '<div class="card"><div class="empty"><div class="empty-icon">🗂️</div><div class="empty-text">No classes yet. Go to Classes & Fees to add classes first.</div></div></div>';
+    return;
+  }
+
+  var termKey = S.activeTerm;
+  var t = getActiveTerm();
+
+  var html = '<div class="alert alert-info" style="margin-bottom:16px;">📅 Setting up fees for: <b>'+(t?t.label:'Current Term')+'</b> &nbsp;|&nbsp; Tuition Fee is always included. Add extra fees per class as needed. <b>Each class has its own fee structure.</b></div>';
+
+  html += S.classes.map(function(cls) {
+    var key = cls.id + '_' + termKey;
+    if(!S.feeSetup[key]) {
+      S.feeSetup[key] = [{id:uid(),name:'Tuition Fee',amount:cls.fee||0,required:true}];
+      sv();
+    }
+    var items = S.feeSetup[key];
+    var total = items.reduce(function(a,f){return a+Number(f.amount||0);},0);
+    var rows = items.map(function(f,i) {
+      var isReq = f.required;
+      return '<tr>'+
+        '<td>'+(isReq?'<span class="badge badge-blue">Tuition</span>':'<span class="badge badge-purple">Extra</span>')+'</td>'+
+        '<td>'+
+          (isReq
+            ? '<b style="color:var(--accent);">'+esc(f.name)+'</b>'
+            : '<input value="'+esc(f.name)+'" style="max-width:160px;" onchange="updateFeeItem(\''+cls.id+'\',\''+f.id+'\',\'name\',this.value)">'
+          )+
+        '</td>'+
+        '<td><input type="number" value="'+Number(f.amount||0)+'" style="max-width:120px;font-family:var(--mono);" onchange="updateFeeItem(\''+cls.id+'\',\''+f.id+'\',\'amount\',this.value)"></td>'+
+        '<td>'+(isReq?'<span style="color:var(--text3);font-size:11px;">Required</span>':'<button class="btn btn-red btn-sm" onclick="removeFeeItem(\''+cls.id+'\',\''+f.id+'\')">🗑️</button>')+'</td>'+
+      '</tr>';
+    }).join('');
+
+    return '<div class="card" style="margin-bottom:16px;">'+
+      '<div class="card-head">'+
+        '<span>🏫 '+esc(cls.name)+'</span>'+
+        '<span style="font-family:var(--mono);color:var(--green);">Total: ₦'+fmt(total)+'</span>'+
+      '</div>'+
+      '<div class="tbl-wrap" style="margin-bottom:12px;"><table>'+
+        '<thead><tr><th>Type</th><th>Fee Name</th><th>Amount (₦)</th><th>Action</th></tr></thead>'+
+        '<tbody>'+rows+'</tbody>'+
+        '<tfoot><tr><td colspan="2" style="font-weight:700;color:var(--text);padding:10px 14px;">TOTAL</td>'+
+          '<td style="font-family:var(--mono);font-weight:700;color:var(--green);padding:10px 14px;">₦'+fmt(total)+'</td><td></td></tr></tfoot>'+
+      '</table></div>'+
+      '<button class="btn btn-ghost btn-sm" onclick="addFeeItem(\''+cls.id+'\')">+ Add Fee Item</button>'+
+      '<span style="font-size:11px;color:var(--text3);margin-left:12px;">'+classStudents(cls.id).length+' students in this class</span>'+
+    '</div>';
+  }).join('');
+
+  el.innerHTML = html;
+}
+
+function addFeeItem(classId) {
+  var termKey = S.activeTerm;
+  var key = classId + '_' + termKey;
+  if(!S.feeSetup[key]) S.feeSetup[key] = [];
+  S.feeSetup[key].push({id:uid(),name:'New Fee',amount:0,required:false});
+  sv(); renderFeeSetup();
+}
+
+function removeFeeItem(classId, feeId) {
+  var key = classId + '_' + S.activeTerm;
+  if(!S.feeSetup[key]) return;
+  S.feeSetup[key] = S.feeSetup[key].filter(function(f){return f.id!==feeId;});
+  sv(); renderFeeSetup();
+}
+
+function updateFeeItem(classId, feeId, field, value) {
+  var key = classId + '_' + S.activeTerm;
+  if(!S.feeSetup[key]) return;
+  var item = S.feeSetup[key].find(function(f){return f.id===feeId;});
+  if(!item) return;
+  if(field==='amount') item.amount = parseFloat(value)||0;
+  else item[field] = value;
+  sv();
+  // Update the total display in the card head without full re-render
+  var total = S.feeSetup[key].reduce(function(a,f){return a+Number(f.amount||0);},0);
+  // Just save — no re-render to avoid losing focus
+}
+
+// ══════════════════════════════════════════════
+//  SETTINGS
+// ══════════════════════════════════════════════
+var EMAIL_PRESETS = {
+  gmail:   { host: 'smtp.gmail.com',        port: 587 },
+  outlook: { host: 'smtp.office365.com',    port: 587 },
+  zoho:    { host: 'smtp.zoho.com',         port: 587 },
+  yahoo:   { host: 'smtp.mail.yahoo.com',   port: 587 },
+  custom:  { host: '',                      port: 587 }
+};
+function applyEmailPreset(key) {
+  var p = EMAIL_PRESETS[key];
+  if(!p) return;
+  var hostEl = document.getElementById('s-em-host');
+  var portEl = document.getElementById('s-em-port');
+  if(hostEl) hostEl.value = p.host;
+  if(portEl) portEl.value = p.port;
+}
+
+function openSettings() {
+  if(!S.sms) S.sms = {provider:'bulksms',apiToken:'KzQwJrlGTcELgNEqswFcRCKCxP5ZSOjrN5TtuB1kNIUY9lSaPb1TSDevK1my',senderId:'SCHALERT',enabled:false,log:[]};
+  if(!S.email) S.email = {enabled:false,smtpHost:'',smtpPort:587,fromEmail:'',fromName:'',appPassword:'',log:[]};
+  var sms = S.sms;
+  var em = S.email;
+  var senderOpts = ['SCHALERT','SCHOOL','INFO','ALERT','NOTIFY'].map(function(v){
+    return '<option value="'+v+'"'+(sms.senderId===v?' selected':'')+'>'+v+'</option>';
+  }).join('');
+
+  var smsLog = (sms.log&&sms.log.length)
+    ? '<hr class="divider"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.7px;font-family:var(--mono);margin-bottom:8px;">Recent SMS Log</div>'+
+      '<div style="max-height:120px;overflow-y:auto;">'+
+      sms.log.slice(0,15).map(function(l){
+        var stu=getStudent(l.studentId);
+        var sc=l.status==='sent'?'var(--green)':l.status==='failed'?'var(--red)':'var(--yellow)';
+        return '<div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px;">'+
+          '<span style="color:'+sc+';font-family:var(--mono);min-width:52px;">'+l.status+'</span>'+
+          '<span style="flex:1;color:var(--text2);">'+(stu?stu.name:'?')+' → '+esc(l.phone)+'</span>'+
+          '<span style="color:var(--text3);font-size:10px;">'+l.date.slice(0,10)+'</span></div>';
+      }).join('')+'</div>'
+    : '';
+
+  var emailLog = (em.log&&em.log.length)
+    ? '<hr class="divider"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.7px;font-family:var(--mono);margin-bottom:8px;">Recent Email Log</div>'+
+      '<div style="max-height:120px;overflow-y:auto;">'+
+      em.log.slice(0,15).map(function(l){
+        var stu=getStudent(l.studentId);
+        var sc=l.status==='sent'?'var(--green)':l.status==='failed'?'var(--red)':'var(--yellow)';
+        return '<div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px;">'+
+          '<span style="color:'+sc+';font-family:var(--mono);min-width:52px;">'+l.status+'</span>'+
+          '<span style="flex:1;color:var(--text2);">'+(stu?stu.name:'?')+' → '+esc(l.email)+'</span>'+
+          '<span style="color:var(--text3);font-size:10px;">'+l.date.slice(0,10)+'</span></div>';
+      }).join('')+'</div>'
+    : '';
+
+  showModal('settModal', '⚙️ Settings',
+    // ── School Info ──
+    '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.7px;font-family:var(--mono);margin-bottom:10px;">School Information</div>'+
+    '<div class="form-grid" style="margin-bottom:18px;">'+
+      '<div class="fg" style="grid-column:1/-1;"><label>School Name</label><input id="s-name" value="'+esc(S.school.name)+'"></div>'+
+      '<div class="fg"><label>Academic Session</label><input id="s-sess" value="'+esc(S.school.session)+'" placeholder="e.g. 2024/2025"></div>'+
+      '<div class="fg"><label>Current Term</label><select id="s-term">'+[1,2,3].map(function(t){ return '<option value="'+t+'"'+(S.school.term==t?' selected':'')+'>Term '+t+'</option>'; }).join('')+'</select></div>'+
+    '</div>'+
+    '<div class="alert alert-info" style="margin-bottom:14px;font-size:11px;">💡 To start a new term with balance carry-forward, use the <b>🔒 Close Term & Start New</b> button on the Dashboard.</div>'+
+    '<hr class="divider">'+
+    // ── SMS ──
+    '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.7px;font-family:var(--mono);margin-bottom:10px;">📱 SMS — BulkSMSNigeria</div>'+
+    '<div class="form-grid" style="margin-bottom:12px;">'+
+      '<div class="fg" style="grid-column:1/-1;display:flex;align-items:center;gap:10px;">'+
+        '<input type="checkbox" id="s-sms-enabled" style="width:16px;height:16px;"'+(sms.enabled?' checked':'')+'>'+
+        '<label style="font-size:12px;color:var(--text);text-transform:none;letter-spacing:0;">Enable SMS to parents on every payment</label>'+
+      '</div>'+
+      '<div class="fg"><label>API Token</label><input id="s-sms-token" type="password" value="'+esc(sms.apiToken||'')+'" placeholder="BulkSMSNigeria API token"></div>'+
+      '<div class="fg"><label>Sender ID <span style="font-size:9px;color:var(--text3);">(choose one of your 5 names)</span></label>'+
+        '<select id="s-sms-sid">'+senderOpts+'</select>'+
+      '</div>'+
+    '</div>'+
+    smsLog+
+    '<hr class="divider">'+
+    // ── Email (native SMTP) ──
+    '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.7px;font-family:var(--mono);margin-bottom:10px;">📧 Email — SMTP (your own email account)</div>'+
+    '<div class="alert alert-info" style="margin-bottom:12px;font-size:11px;">Use your school\'s Gmail, Outlook, or domain email. For Gmail/Outlook you need an <b>App Password</b> (not your normal login password) — enable 2-Step Verification, then generate one under Security settings.</div>'+
+    '<div class="form-grid" style="margin-bottom:12px;">'+
+      '<div class="fg" style="grid-column:1/-1;display:flex;align-items:center;gap:10px;">'+
+        '<input type="checkbox" id="s-em-enabled" style="width:16px;height:16px;"'+(em.enabled?' checked':'')+'>'+
+        '<label style="font-size:12px;color:var(--text);text-transform:none;letter-spacing:0;">Enable Email notifications to parents on every payment</label>'+
+      '</div>'+
+      '<div class="fg" style="grid-column:1/-1;"><label>Quick Setup <span style="font-size:9px;color:var(--text3);">(fills host/port for you)</span></label>'+
+        '<select id="s-em-preset" onchange="applyEmailPreset(this.value)">'+
+          '<option value="">— Choose your email provider —</option>'+
+          '<option value="gmail">Gmail</option>'+
+          '<option value="outlook">Outlook / Office 365</option>'+
+          '<option value="zoho">Zoho Mail</option>'+
+          '<option value="yahoo">Yahoo Mail</option>'+
+          '<option value="custom">Custom / Domain Email (cPanel etc.)</option>'+
+        '</select>'+
+      '</div>'+
+      '<div class="fg"><label>SMTP Host</label><input id="s-em-host" value="'+esc(em.smtpHost||'')+'" placeholder="e.g. smtp.gmail.com"></div>'+
+      '<div class="fg"><label>SMTP Port</label><input id="s-em-port" type="number" value="'+esc(em.smtpPort||587)+'" placeholder="587"></div>'+
+      '<div class="fg"><label>From Name</label><input id="s-em-fromname" value="'+esc(em.fromName||S.school.name||'')+'" placeholder="e.g. Alwaarith School"></div>'+
+      '<div class="fg"><label>Email Address</label><input id="s-em-from" value="'+esc(em.fromEmail||'')+'" placeholder="you@school.com"></div>'+
+      '<div class="fg" style="grid-column:1/-1;"><label>App Password</label><input id="s-em-pass" type="password" value="'+esc(em.appPassword||'')+'" placeholder="16-character app password (not your login password)"></div>'+
+    '</div>'+
+    emailLog,
+    function() {
+      S.school.name = document.getElementById('s-name').value.trim() || S.school.name;
+      S.school.session = document.getElementById('s-sess').value.trim() || S.school.session;
+      S.school.term = parseInt(document.getElementById('s-term').value)||1;
+      S.sms.enabled = document.getElementById('s-sms-enabled').checked;
+      S.sms.apiToken = document.getElementById('s-sms-token').value.trim();
+      S.sms.senderId = document.getElementById('s-sms-sid').value || 'SCHALERT';
+      S.sms.provider = 'bulksms';
+      S.email.enabled = document.getElementById('s-em-enabled').checked;
+      S.email.smtpHost = document.getElementById('s-em-host').value.trim();
+      S.email.smtpPort = parseInt(document.getElementById('s-em-port').value)||587;
+      S.email.fromName = document.getElementById('s-em-fromname').value.trim();
+      S.email.fromEmail = document.getElementById('s-em-from').value.trim();
+      S.email.appPassword = document.getElementById('s-em-pass').value.trim();
+      sv();
+      document.getElementById('schoolNameDisplay').textContent = S.school.name;
+      var badge = document.getElementById('smsStatusBadge');
+      if(badge) badge.innerHTML = S.sms.enabled ? '<span style="color:var(--green);">📱 SMS ON</span>' : '<span style="color:var(--text3);">📱 SMS OFF</span>';
+      closeModal(); renderPage();
+      showToast('✅ Settings saved!');
+    }
+  );
+}
+
+// ══════════════════════════════════════════════
+//  MODAL ENGINE
+// ══════════════════════════════════════════════
+var _modalOk = null;
+function showModal(id, title, body, onOk) {
+  _modalOk = onOk;
+  var existing = document.getElementById('__modal'); if(existing) existing.remove();
+  var div = document.createElement('div'); div.id = '__modal'; div.className = 'modal-overlay';
+  div.innerHTML = '<div class="modal"><div class="modal-head"><span>'+title+'</span><span class="modal-close" onclick="closeModal()">✕</span></div><div id="__modal-body">'+body+'</div><div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="_modalOk&&_modalOk()">Save</button></div></div>';
+  document.body.appendChild(div);
+  div.addEventListener('click', function(e){ if(e.target===div) closeModal(); });
+}
+function closeModal() { var m = document.getElementById('__modal'); if(m) m.remove(); _modalOk = null; }
+
+// ══════════════════════════════════════════════
+//  RECEIPT ENGINE
+// ══════════════════════════════════════════════
+function genReceiptNo() {
+  var d = new Date(); var yy=String(d.getFullYear()).slice(2); var mm=String(d.getMonth()+1).padStart(2,'0'); var rand=Math.floor(Math.random()*9000)+1000;
+  return 'RCP-'+yy+mm+'-'+rand;
+}
+
+function showReceiptObj(payment) {
+  if(!payment) return;
+  var s = getStudent(payment.studentId);
+  var cls = s ? getClass(s.classId) : null;
+  var fee = s ? studentFee(s.id) : 0;
+  var cf = s ? studentCarriedForward(s.id) : 0;
+  var ac = s ? studentAdditionalCharges(s.id) : 0;
+  var totalDue = fee + cf + ac;
+  var totalPaid = s ? studentTotalPaid(s.id) : 0;
+  var balance = totalDue - totalPaid - (s?studentTotalDiscount(s.id):0);
+  var isPaid = balance <= 0 && totalDue > 0;
+  var rNo = payment.receiptNo || ('RCP-'+payment.id.slice(0,8).toUpperCase());
+  var dateStr = payment.date ? new Date(payment.date).toLocaleDateString('en-NG', {year:'numeric',month:'long',day:'numeric'}) : '—';
+  var printedAt = new Date().toLocaleString('en-NG', {hour:'2-digit',minute:'2-digit',day:'2-digit',month:'short',year:'numeric'});
+  var t = getViewingTerm();
+  var thisPaymentCharges = paymentAdditionalCharges(payment.id);
+  var chargesTotal = thisPaymentCharges.reduce(function(a,c){return a+Number(c.amount||0);},0);
+  var chargesHtml = '';
+  if(thisPaymentCharges.length) {
+    chargesHtml = '<div style="margin:10px 0 4px;font-size:10px;color:#888;font-family:\'JetBrains Mono\',monospace;text-transform:uppercase;letter-spacing:0.5px;">Additional Fees Added</div>'+
+      thisPaymentCharges.map(function(c){ return '<div class="receipt-row" style="font-size:11px;"><span class="rl">'+esc(c.type)+'</span><span class="rv">₦'+fmt(c.amount)+'</span></div>'; }).join('');
+  }
+
+  var mainEl = document.getElementById('main');
+  var contentEl = document.getElementById('content');
+  var topbarEl = document.querySelector('.topbar');
+  topbarEl.style.display='none'; contentEl.style.display='none';
+
+  var receiptPage = document.createElement('div');
+  receiptPage.id = '__receipt-page';
+  receiptPage.style.cssText = 'flex:1;overflow-y:auto;background:var(--bg);display:flex;flex-direction:column;align-items:center;padding:20px 16px 40px;';
+  receiptPage.innerHTML =
+    '<div style="width:100%;max-width:480px;display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">'+
+      '<button class="btn btn-ghost" onclick="closeReceipt()">← Back</button>'+
+      '<span style="font-size:11px;color:var(--text3);font-family:var(--mono);">Payment Receipt</span>'+
+      '<button class="btn btn-green" onclick="printReceipt()">🖨️ Print</button>'+
+    '</div>'+
+    '<div class="receipt-box" id="receiptPrintArea" style="width:100%;max-width:480px;">'+
+      '<div class="receipt-header">'+
+        '<div class="rh-school">'+esc(S.school.name)+'</div>'+
+        '<div class="rh-sub">'+esc(t.label)+'</div>'+
+        '<div class="rh-title">Payment Receipt</div>'+
+        '<div class="receipt-no-tag">'+esc(rNo)+'</div>'+
+      '</div>'+
+      '<div class="receipt-body">'+
+        '<div class="receipt-row"><span class="rl">Student Name</span><span class="rv">'+esc(s?s.name:'—')+'</span></div>'+
+        '<div class="receipt-row"><span class="rl">Admission No.</span><span class="rv" style="font-family:\'JetBrains Mono\',monospace;">'+esc(s?s.admNo:'—')+'</span></div>'+
+        '<div class="receipt-row"><span class="rl">Class</span><span class="rv">'+esc(cls?cls.name:'—')+'</span></div>'+
+        '<div class="receipt-row"><span class="rl">Payment Date</span><span class="rv">'+esc(dateStr)+'</span></div>'+
+        '<div class="receipt-row"><span class="rl">Payment Method</span><span class="rv">'+esc(payment.method||'Cash')+'</span></div>'+
+        (payment.note?'<div class="receipt-row"><span class="rl">Note</span><span class="rv" style="font-style:italic;color:#555;">'+esc(payment.note)+'</span></div>':'')+
+        (cf>0?'<div class="receipt-row" style="background:rgba(255,140,66,0.06);border-radius:6px;padding:8px 10px;margin:4px 0;"><span class="rl" style="color:#cc6600;">↩ Carried Forward Balance</span><span class="rv" style="color:#cc6600;">₦'+fmt(cf)+'</span></div>':'')+
+        (chargesTotal>0?'<div class="receipt-row" style="background:rgba(167,139,250,0.08);border-radius:6px;padding:8px 10px;margin:4px 0;"><span class="rl" style="color:#7c5cd6;">➕ Additional Fees</span><span class="rv" style="color:#7c5cd6;">₦'+fmt(chargesTotal)+'</span></div>':'')+
+        (payment.discount>0?'<div class="receipt-row" style="background:rgba(255,209,102,0.08);border-radius:6px;padding:8px 10px;margin:4px 0;"><span class="rl" style="color:#b8860b;">🏷️ Discount Applied</span><span class="rv" style="color:#b8860b;">− ₦'+fmt(payment.discount)+'</span></div>':'')+
+        chargesHtml+
+        '<div class="receipt-amount-block">'+
+          '<div class="ram-label">Amount Paid This Payment</div>'+
+          '<div class="ram-value">₦'+fmt(payment.amount)+'</div>'+
+          '<div class="ram-bal">'+(isPaid?'✅ Fully Paid':'⏳ Remaining Balance: ₦'+fmt(Math.max(0,balance)))+'</div>'+
+        '</div>'+
+        '<div class="receipt-row"><span class="rl">This Term Fee</span><span class="rv" style="font-family:\'JetBrains Mono\',monospace;">₦'+fmt(fee)+'</span></div>'+
+        (cf>0?'<div class="receipt-row"><span class="rl">Carried Forward</span><span class="rv" style="font-family:\'JetBrains Mono\',monospace;color:#cc6600;">+ ₦'+fmt(cf)+'</span></div>':'')+
+        (ac>0?'<div class="receipt-row"><span class="rl">Additional Fees (total)</span><span class="rv" style="font-family:\'JetBrains Mono\',monospace;color:#7c5cd6;">+ ₦'+fmt(ac)+'</span></div>':'')+
+        '<div class="receipt-row"><span class="rl">Total Paid (cumulative)</span><span class="rv" style="font-family:\'JetBrains Mono\',monospace;color:#00a36b;">₦'+fmt(totalPaid)+'</span></div>'+
+        '<div class="receipt-row"><span class="rl">Outstanding Balance</span><span class="rv" style="font-family:\'JetBrains Mono\',monospace;color:'+(balance>0?'#d63251':'#00a36b')+';">₦'+fmt(Math.max(0,balance))+'</span></div>'+
+      '</div>'+
+      '<div class="receipt-footer">'+
+        'Issued by: '+esc(S.school.name)+' &nbsp;·&nbsp; '+esc(printedAt)+
+        '<div class="rf-watermark">This is an electronically generated receipt — no signature required</div>'+
+      '</div>'+
+    '</div>'+
+    '<div style="width:100%;max-width:480px;display:flex;gap:10px;margin-top:16px;">'+
+      '<button class="btn btn-ghost" style="flex:1;justify-content:center;" onclick="closeReceipt()">← Back</button>'+
+      '<button class="btn btn-primary" style="flex:1;justify-content:center;" onclick="closeReceipt();navigate(\'dashboard\')">📊 Dashboard</button>'+
+      '<button class="btn btn-yellow" style="flex:1;justify-content:center;" onclick="saveReceiptPDF(\''+payment.id+'\')">💾 Save PDF</button>'+
+      '<button class="btn btn-green" style="flex:1;justify-content:center;" onclick="printReceipt()">🖨️ Print</button>'+
+    '</div>';
+  mainEl.appendChild(receiptPage);
+}
+
+function closeReceipt() {
+  var r = document.getElementById('__receipt-page'); if(r) r.remove();
+  var topbarEl = document.querySelector('.topbar'); var contentEl = document.getElementById('content');
+  if(topbarEl) topbarEl.style.display=''; if(contentEl) contentEl.style.display='';
+}
+
+function printReceipt() {
+  var area = document.getElementById('receiptPrintArea'); if(!area) return;
+  var styles = '<style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:Arial,sans-serif;background:#fff;padding:12px;}.receipt-box{width:100%;max-width:460px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;}.receipt-header{background:#0a0f1e;color:#fff;padding:20px 24px 16px;text-align:center;}.rh-school{font-size:15px;font-weight:800;margin-bottom:3px;}.rh-sub{font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:10px;}.rh-title{display:inline-block;border:1px solid #00d4ff;color:#00d4ff;padding:3px 14px;border-radius:99px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;}.receipt-no-tag{font-size:9px;color:rgba(255,255,255,0.35);margin-top:6px;}.receipt-body{padding:16px 22px;background:#fff;}.receipt-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px dashed #e8e8e8;font-size:12px;}.rl{color:#777;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;}.rv{font-weight:600;color:#111;text-align:right;max-width:60%;}.receipt-amount-block{background:#f0fff8;border:1px solid #b2f0da;border-radius:8px;padding:14px;margin:12px 0;text-align:center;}.ram-label{font-size:10px;color:#555;text-transform:uppercase;margin-bottom:4px;}.ram-value{font-size:26px;font-weight:800;color:#00a36b;margin-bottom:4px;}.ram-bal{font-size:11px;color:#888;}.receipt-footer{background:#f7f8fa;border-top:1px dashed #ddd;padding:10px 22px;text-align:center;font-size:10px;color:#aaa;}.rf-watermark{font-size:8px;margin-top:3px;opacity:0.6;}@media print{body{padding:0;}}</style>';
+  var html = '\x3C!DOCTYPE html\x3E<html><head><title>Receipt</title>'+styles+'</head><body>'+area.outerHTML+'</body></html>';
+  var iframe = document.createElement('iframe');
+  iframe.style.cssText='position:fixed;top:-9999px;left:-9999px;width:600px;height:900px;border:none;visibility:hidden;';
+  iframe.srcdoc = html; document.body.appendChild(iframe);
+  iframe.onload = function() { setTimeout(function(){ try{iframe.contentWindow.focus();iframe.contentWindow.print();}catch(e){} setTimeout(function(){iframe.remove();},2500); },350); };
+}
+
+function saveReceiptPDF(paymentId) {
+  var payment = findPaymentById(paymentId); if(!payment) return;
+  var student = getStudent(payment.studentId);
+  var cls = student ? getClass(student.classId) : null;
+  var fee = student ? studentFee(student.id) : 0;
+  var cf = student ? studentCarriedForward(student.id) : 0;
+  var ac = student ? studentAdditionalCharges(student.id) : 0;
+  var totalPaid = student ? studentTotalPaid(student.id) : 0;
+  var disc = student ? studentTotalDiscount(student.id) : 0;
+  var balance = (fee + cf + ac) - totalPaid - disc;
+  var rNo = payment.receiptNo || ('RCP-'+payment.id.slice(0,8).toUpperCase());
+  var t = getViewingTerm();
+  var thisPaymentCharges = paymentAdditionalCharges(payment.id);
+  try {
+    function fmtPDF(n) { return 'N'+Number(n||0).toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+    function safeTxt(s) { return String(s||'').replace(/[₦]/g,'N'); }
+    var jsPDFLib = window.jspdf && window.jspdf.jsPDF;
+    if(!jsPDFLib) { showToast('❌ PDF library not loaded.', true); return; }
+    var doc = new jsPDFLib({unit:'mm',format:'a5',orientation:'portrait'});
+    var pageW = doc.internal.pageSize.getWidth(); var margin = 14; var contentW = pageW-margin*2; var y=0;
+    doc.setFillColor(10,15,30); doc.rect(0,0,pageW,44,'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(255,255,255);
+    doc.text(safeTxt(S.school.name), pageW/2, 12, {align:'center'});
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(180,200,220);
+    doc.text(safeTxt(t.label), pageW/2, 18, {align:'center'});
+    doc.setFillColor(0,60,80); doc.roundedRect(pageW/2-22,21,44,7,3,3,'F');
+    doc.setFontSize(7); doc.setTextColor(0,200,240); doc.setFont('helvetica','bold');
+    doc.text('PAYMENT RECEIPT', pageW/2, 26, {align:'center'});
+    doc.setFontSize(7); doc.setTextColor(120,150,180); doc.setFont('helvetica','normal');
+    doc.text(safeTxt(rNo), pageW/2, 33, {align:'center'});
+    y=50;
+    var rows=[['Student Name',safeTxt(student?student.name:'-')],['Admission No.',safeTxt(student?student.admNo:'-')],['Class',safeTxt(cls?cls.name:'-')],['Payment Date',safeTxt(payment.date||'-')],['Payment Method',safeTxt(payment.method||'Cash')]];
+    if(payment.note) rows.push(['Note',safeTxt(payment.note)]);
+    if(cf>0) rows.push(['Carried Forward Debt',fmtPDF(cf)]);
+    if(thisPaymentCharges.length) { rows.push(['-- ADDITIONAL FEES ADDED --','']); thisPaymentCharges.forEach(function(c){ rows.push(['  '+c.type,fmtPDF(c.amount)]); }); }
+    if(payment.discount>0) { rows.push(['Discount Applied','-'+fmtPDF(payment.discount)]); if(payment.discountReason) rows.push(['Discount Reason',safeTxt(payment.discountReason)]); }
+    rows.forEach(function(row){ doc.setDrawColor(220,225,235); doc.setLineWidth(0.2); doc.line(margin,y,pageW-margin,y); doc.setFontSize(8); doc.setTextColor(120,130,150); doc.setFont('helvetica','normal'); doc.text(row[0],margin,y+5); doc.setTextColor(20,20,40); doc.setFont('helvetica','bold'); doc.text(String(row[1]),pageW-margin,y+5,{align:'right'}); y+=10; });
+    doc.line(margin,y,pageW-margin,y); y+=6;
+    doc.setFillColor(240,255,248); doc.roundedRect(margin,y,contentW,26,4,4,'F'); doc.setDrawColor(0,180,120); doc.setLineWidth(0.4); doc.roundedRect(margin,y,contentW,26,4,4,'S');
+    doc.setFontSize(8); doc.setTextColor(80,120,100); doc.setFont('helvetica','normal');
+    doc.text('AMOUNT PAID THIS PAYMENT',pageW/2,y+7,{align:'center'});
+    doc.setFontSize(18); doc.setFont('helvetica','bold'); doc.setTextColor(0,163,107);
+    doc.text(fmtPDF(payment.amount),pageW/2,y+17,{align:'center'});
+    doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(100,120,110);
+    doc.text(balance<=0?'Fees Fully Paid':'Remaining Balance: '+fmtPDF(Math.max(0,balance)),pageW/2,y+23,{align:'center'}); y+=32;
+    var sumRows=[['This Term Fee',fmtPDF(fee),[50,50,80]]];
+    if(cf>0) sumRows.push(['Carried Forward','+'+fmtPDF(cf),[180,100,0]]);
+    if(ac>0) sumRows.push(['Additional Fees (total)','+'+fmtPDF(ac),[124,92,214]]);
+    sumRows.push(['Total Paid (cumulative)',fmtPDF(totalPaid),[0,130,100]]);
+    if(disc>0) sumRows.push(['Total Discounts','-'+fmtPDF(disc),[160,120,0]]);
+    sumRows.push(['Outstanding Balance',fmtPDF(Math.max(0,balance)),balance>0?[200,50,80]:[0,130,100]]);
+    sumRows.forEach(function(row){ doc.setFontSize(8.5); doc.setTextColor(100,110,130); doc.setFont('helvetica','normal'); doc.text(row[0],margin,y+5); doc.setFont('helvetica','bold'); doc.setTextColor(row[2][0],row[2][1],row[2][2]); doc.text(row[1],pageW-margin,y+5,{align:'right'}); y+=9; });
+    y+=4;
+    doc.setFillColor(247,248,250); doc.rect(0,y,pageW,20,'F'); doc.setFontSize(7); doc.setTextColor(160,160,170); doc.setFont('helvetica','normal');
+    doc.text('Issued by: '+safeTxt(S.school.name)+'   -   '+new Date().toLocaleDateString(),pageW/2,y+7,{align:'center'});
+    doc.text('This is an electronically generated receipt - no signature required',pageW/2,y+13,{align:'center'});
+    var fileName = 'Receipt_'+safeTxt(student?student.admNo.replace(/[\/\\:*?"<>|]/g,'-'):'Unknown')+'_'+(payment.date||'').replace(/-/g,'')+'.pdf';
+    var pdfBytes = doc.output('arraybuffer'); var uint8Array = Array.from(new Uint8Array(pdfBytes));
+    if(isDesktopRuntime()) {
+      window.electronAPI.saveFile({defaultPath:fileName,filters:[{name:'PDF Files',extensions:['pdf']}],data:uint8Array}).then(function(filePath){ if(!filePath) return; showToast('✅ Receipt saved: '+filePath); }).catch(function(){ doc.save(fileName); showToast('✅ Receipt downloaded: '+fileName); });
+    } else { doc.save(fileName); showToast('✅ Receipt saved as '+fileName); }
+  } catch(err) { showToast('❌ PDF error: '+err.message, true); }
+}
+
+function showToast(msg, isError) {
+  var t = document.createElement('div');
+  t.style.cssText='position:fixed;bottom:28px;right:28px;z-index:9999;background:'+(isError?'#ff4d6a':'#00e5a0')+';color:'+(isError?'#fff':'#000')+';padding:12px 20px;border-radius:10px;font-size:12px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,0.4);max-width:340px;word-break:break-all;';
+  t.textContent = msg; document.body.appendChild(t); setTimeout(function(){t.remove();},4000);
+}
+
+function showDebugToast(msg) {
+  var t = document.createElement('div');
+  t.style.cssText='position:fixed;top:20px;left:20px;right:20px;z-index:99999;background:#1a1a2e;color:#fff;padding:16px 20px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,0.6);border:2px solid #ff4d6a;cursor:pointer;';
+  t.textContent = '🔴 DEBUG (tap to dismiss): ' + msg;
+  t.onclick = function(){ t.remove(); };
+  document.body.appendChild(t);
+}
+
+// ══════════════════════════════════════════════
+//  BACKUP & RESTORE ENGINE
+// ══════════════════════════════════════════════
+var _backupTimer = null;
+var BACKUP_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // weekly
+function startAutoBackup() {
+  if(_backupTimer) clearInterval(_backupTimer);
+  // Re-checks every 6 hours (only actually backs up once 7 days have passed since
+  // the last one) — catches the weekly mark even on a desktop app that's left open
+  // for long stretches, without spamming a new file every time it's just checked.
+  _backupTimer = setInterval(maybeRunWeeklyBackup, 6*60*60*1000);
+}
+function maybeRunWeeklyBackup() {
+  var last = S._lastBackup ? new Date(S._lastBackup).getTime() : 0;
+  if(Date.now() - last >= BACKUP_INTERVAL_MS) autoBackupToPC();
+}
+
+function getBackupData() {
+  return JSON.stringify({_meta:{app:'Fees Collection Manager',school:S.school.name,exportedAt:new Date().toISOString(),version:'2.0'},data:S},null,2);
+}
+function getBackupFileName() {
+  var d=new Date(); var stamp=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+'_'+String(d.getHours()).padStart(2,'0')+String(d.getMinutes()).padStart(2,'0');
+  var school=(S.school.name||'School').replace(/[^a-zA-Z0-9]/g,'-').slice(0,20);
+  return 'FCM-Backup_'+school+'_'+stamp+'.json';
+}
+
+function autoBackupToPC() {
+  if(!isDesktopRuntime()) return;
+  try {
+    var data=getBackupData(); var bytes=Array.from(new TextEncoder().encode(data)); var fileName=getBackupFileName();
+    window.electronAPI.autoBackup({fileName:fileName,data:bytes}).then(function(path){ S._lastBackup=new Date().toISOString(); S._lastBackupFile=path; sv(); updateBackupBadge(); }).catch(function(err){ console.warn('Auto-backup failed:',err); });
+  } catch(e) { console.warn('Auto-backup error:',e); }
+}
+
+function exportJSON() {
+  var data=getBackupData(); var bytes=Array.from(new TextEncoder().encode(data)); var fileName=getBackupFileName();
+  if(isDesktopRuntime()) {
+    window.electronAPI.saveFile({defaultPath:fileName,filters:[{name:'JSON Backup',extensions:['json']}],data:bytes}).then(function(filePath){ if(!filePath) return; S._lastBackup=new Date().toISOString();S._lastBackupFile=filePath;sv();updateBackupBadge();showToast('✅ Backup saved: '+filePath);renderPage(); }).catch(function(err){showToast('❌ Export failed: '+err,true);});
+  } else {
+    var blob=new Blob([data],{type:'application/json'}); var url=URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download=fileName; a.click(); URL.revokeObjectURL(url); showToast('✅ Backup downloaded: '+fileName);
+  }
+}
+
+function exportCSV() {
+  var lines=[];
+  lines.push('=== STUDENTS ===');
+  lines.push(['Adm No','Name','Class','Gender','Parent Name','Parent Phone'].join(','));
+  S.students.forEach(function(s){ var cls=getClass(s.classId); lines.push([s.admNo,'"'+s.name+'"','"'+(cls?cls.name:'')+'"',s.gender||'','"'+(s.parentName||'')+'"',s.parentPhone||''].join(',')); });
+  lines.push('');
+  termsList().forEach(function(t) {
+    lines.push('=== '+t.label.toUpperCase()+' — PAYMENTS ===');
+    lines.push(['Receipt No','Date','Student','Class','Amount','Discount','Method','Note'].join(','));
+    (t.payments||[]).forEach(function(p){ var s=getStudent(p.studentId); var cls=s?getClass(s.classId):null; lines.push([p.receiptNo||'',p.date||'','"'+(s?s.name:'')+'"','"'+(cls?cls.name:'')+'"',p.amount||0,p.discount||0,p.method||'Cash','"'+(p.note||'')+'"'].join(',')); });
+    lines.push('');
+    if((t.carriedForward)&&Object.keys(t.carriedForward).length) {
+      lines.push('=== '+t.label.toUpperCase()+' — CARRIED FORWARD ===');
+      lines.push(['Student','Adm No','Amount Carried Forward'].join(','));
+      Object.entries(t.carriedForward).forEach(function(e){ var s=getStudent(e[0]); lines.push(['"'+(s?s.name:e[0])+'"',s?s.admNo:'',e[1]].join(',')); });
+      lines.push('');
+    }
+  });
+  var csv=lines.join('\n'); var bytes=Array.from(new TextEncoder().encode(csv)); var fileName=getBackupFileName().replace('.json','.csv');
+  if(isDesktopRuntime()) {
+    window.electronAPI.saveFile({defaultPath:fileName,filters:[{name:'CSV / Excel',extensions:['csv']}],data:bytes}).then(function(filePath){ if(!filePath) return; showToast('✅ Excel export saved: '+filePath); }).catch(function(err){showToast('❌ Export failed: '+err,true);});
+  } else {
+    var blob=new Blob([csv],{type:'text/csv'}); var url=URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download=fileName; a.click(); URL.revokeObjectURL(url); showToast('✅ CSV downloaded');
+  }
+}
+
+function backupToGoogleDrive() {
+  if(!S.backup) S.backup={};
+  var gToken = S.backup.googleToken||'';
+  if(!gToken) { showToast('❌ Google Drive not connected. Save a token in Backup settings.', true); return; }
+  var data=getBackupData(); var fileName=getBackupFileName(); var prevFileId=S.backup.googleFileId||null;
+  var doUpload = function(fileId) {
+    var boundary='-------fcmbackup'; var metadata=JSON.stringify({name:fileName,mimeType:'application/json'});
+    var body='--'+boundary+'\r\nContent-Type: application/json\r\n\r\n'+metadata+'\r\n--'+boundary+'\r\nContent-Type: application/json\r\n\r\n'+data+'\r\n--'+boundary+'--';
+    var url=fileId?'https://www.googleapis.com/upload/drive/v3/files/'+fileId+'?uploadType=multipart':'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+    fetch(url,{method:fileId?'PATCH':'POST',headers:{'Authorization':'Bearer '+gToken,'Content-Type':'multipart/related; boundary='+boundary},body:body}).then(function(r){return r.json();}).then(function(res){ if(res.id){S.backup.googleFileId=res.id;S.backup.googleFileName=fileName;S._lastBackup=new Date().toISOString();S._lastGDriveBackup=new Date().toISOString();sv();updateBackupBadge();showToast('✅ Google Drive backup complete: '+fileName);renderPage();}else{showToast('❌ Drive upload failed: '+JSON.stringify(res).slice(0,80),true);}}).catch(function(err){showToast('❌ Drive error: '+err,true);});
+  };
+  doUpload(prevFileId);
+}
+
+function restoreFromJSON() {
+  if(!confirm('⚠️ This will REPLACE all current data with the backup. Are you sure?')) return;
+  if(isDesktopRuntime()) {
+    window.electronAPI.openFile({filters:[{name:'JSON Backup',extensions:['json']}]}).then(function(result){ if(!result) return; try{ doRestore(result.text); }catch(e){ showToast('❌ Read error: '+e.message,true); } }).catch(function(err){showToast('❌ Could not read file: '+err,true);});
+  } else {
+    var inp=document.createElement('input'); inp.type='file'; inp.accept='.json';
+    inp.onchange=function(e){ var file=e.target.files[0]; if(!file) return; var reader=new FileReader(); reader.onload=function(ev){doRestore(ev.target.result);}; reader.readAsText(file); };
+    inp.click();
+  }
+}
+
+function doRestore(text) {
+  try {
+    var parsed=JSON.parse(text); var restored=parsed.data||parsed;
+    if(!restored.students||!restored.classes){showToast('❌ Invalid backup file format.',true);return;}
+    // Migrate v1 to v2 if needed
+    if(!restored.terms) { restored = migrateV1toV2(restored); }
+    S=restored;
+    if(!S.sms) S.sms={provider:'bulksms',apiToken:'KzQwJrlGTcELgNEqswFcRCKCxP5ZSOjrN5TtuB1kNIUY9lSaPb1TSDevK1my',senderId:'SCHALERT',enabled:false,log:[]};
+    if(S.sms.provider==='termii'||S.sms.provider==='twilio'){S.sms.provider='bulksms';}
+    if(!S.sms.apiToken&&S.sms.apiKey){S.sms.apiToken=S.sms.apiKey;}
+    if(!S.email) S.email={enabled:false,smtpHost:'',smtpPort:587,fromEmail:'',fromName:'',appPassword:'',log:[]};
+    if(!S.feeSetup) S.feeSetup={};
+    if(!S.backup) S.backup={};
+    if(S.admCounter===undefined||S.admCounter===null) S.admCounter=0;
+    if(!S.terms) S.terms={};
+    if(!S.activeTerm) { var k=S.school.session+'-'+S.school.term; if(!S.terms[k]) S.terms[k]=makeTerm(S.school.session,S.school.term); S.activeTerm=k; }
+    viewingTermKey=S.activeTerm;
+    sv();
+    showToast('✅ Data restored! '+S.students.length+' students · '+Object.keys(S.terms).length+' terms');
+    setTimeout(function(){renderPage();},800);
+  } catch(e) { showToast('❌ Restore failed: '+e.message,true); }
+}
+
+function updateBackupBadge() {
+  var badge=document.getElementById('backupBadge'); if(!badge) return;
+  var last=S._lastBackup;
+  if(last){var d=new Date(last);var diff=Math.round((Date.now()-d.getTime())/60000);var label=diff<1?'just now':diff<60?diff+'m ago':Math.round(diff/60)+'h ago';badge.innerHTML='<span style="color:var(--green);">💾 Backed up '+label+'</span>';}
+  else{badge.innerHTML='<span style="color:var(--red);">⚠️ No backup yet</span>';}
+}
+
+function renderBackup() {
+  var el=document.getElementById('content');
+  var actions=document.getElementById('topbarActions');
+  actions.innerHTML='<button class="btn btn-primary" onclick="exportJSON()">📤 Export JSON</button>';
+  if(!S.backup) S.backup={};
+  var lastBackup=S._lastBackup?new Date(S._lastBackup).toLocaleString():'Never';
+  var lastGDrive=S._lastGDriveBackup?new Date(S._lastGDriveBackup).toLocaleString():'Never';
+  var lastFile=S._lastBackupFile||'—';
+  el.innerHTML=
+    '<div class="stats-grid" style="margin-bottom:20px;">'+
+      '<div class="stat-card green"><div class="stat-icon">🖥️</div><div class="stat-label">Last PC Backup</div><div class="stat-value" style="font-size:13px;">'+lastBackup+'</div><div class="stat-sub" style="word-break:break-all;">'+esc(lastFile.split('\\').pop()||lastFile.split('/').pop()||'—')+'</div></div>'+
+      '<div class="stat-card blue"><div class="stat-icon">☁️</div><div class="stat-label">Last Google Drive</div><div class="stat-value" style="font-size:13px;">'+lastGDrive+'</div><div class="stat-sub">'+(S.backup.googleFileName||'—')+'</div></div>'+
+      '<div class="stat-card yellow"><div class="stat-icon">📊</div><div class="stat-label">Data Size</div><div class="stat-value" style="font-size:16px;">'+(Math.round(JSON.stringify(S).length/1024*10)/10)+' KB</div><div class="stat-sub">'+S.students.length+' students · '+Object.keys(S.terms).length+' terms</div></div>'+
+    '</div>'+
+    '<div class="card" style="margin-bottom:14px;"><div class="card-head">🖥️ PC Auto-Backup</div><div class="alert alert-info" style="margin-bottom:12px;">Automatically saves <b>once a week</b> to the <b>FeesManager-Backups</b> folder on your Desktop (checked each time the app opens, and every few hours if left running). This protects against mistakes inside the app — it does NOT protect against this computer being lost, stolen, or damaged. For that, use <b>Export Backup</b> to copy a file to a USB drive, or set up <b>Google Drive Backup</b> below, regularly.</div><div style="display:flex;gap:10px;flex-wrap:wrap;"><button class="btn btn-green" onclick="autoBackupToPC();showToast(\'✅ Backup saved to Desktop/FeesManager-Backups/\')">💾 Backup Now to PC</button></div></div>'+
+    '<div class="card" style="margin-bottom:14px;"><div class="card-head">📤 Manual Export</div><div class="alert alert-info" style="margin-bottom:12px;">Export all terms and data. CSV export includes all terms with carry-forward records.</div><div style="display:flex;gap:10px;flex-wrap:wrap;"><button class="btn btn-primary" onclick="exportJSON()">📦 Export as JSON (Full Backup)</button><button class="btn btn-yellow" onclick="exportCSV()">📊 Export as CSV (Excel)</button></div></div>'+
+    '<div class="card" style="margin-bottom:14px;"><div class="card-head">☁️ Google Drive Backup</div><div class="alert alert-info" style="margin-bottom:12px;">Upload backup to Google Drive. Requires a Google OAuth token.</div><div class="form-grid" style="margin-bottom:12px;"><div class="fg" style="grid-column:1/-1;"><label>Google OAuth Access Token</label><input id="gtoken" type="password" value="'+esc(S.backup.googleToken||'')+'" placeholder="Paste your Google OAuth token here"><div style="font-size:10px;color:var(--text3);margin-top:3px;">Get a token from <b>developers.google.com/oauthplayground</b> → Drive API v3 scope</div></div></div><div style="display:flex;gap:10px;flex-wrap:wrap;"><button class="btn btn-ghost" onclick="(function(){S.backup.googleToken=document.getElementById(\'gtoken\').value.trim();sv();showToast(\'✅ Token saved\');})()">💾 Save Token</button><button class="btn btn-primary" onclick="S.backup.googleToken=document.getElementById(\'gtoken\').value.trim();sv();backupToGoogleDrive()">☁️ Backup to Drive</button></div></div>'+
+    '<div class="card"><div class="card-head">🔄 Restore from Backup</div><div class="alert alert-warn" style="margin-bottom:12px;">⚠️ Restoring will <b>replace all current data</b>. This cannot be undone. Export first if needed. <b>Both v1 and v2 backups are supported.</b></div><button class="btn btn-red" onclick="restoreFromJSON()">📂 Restore from JSON File</button></div>';
+}
+
+// ══════════════════════════════════════════════
+//  BOOT
+// ══════════════════════════════════════════════
+if (checkLicenseActivation()) {
+  updateTrialBanner();
+  document.getElementById('schoolNameDisplay').textContent = S.school.name;
+  (function(){ var badge=document.getElementById('smsStatusBadge'); if(badge) badge.innerHTML=S.sms&&S.sms.enabled?'<span style="color:var(--green);">📱 SMS ON</span>':'<span style="color:var(--text3);">📱 SMS OFF</span>'; })();
+  updateBackupBadge();
+  startAutoBackup();
+  setTimeout(maybeRunWeeklyBackup, 3000);
+  viewingTermKey = S.activeTerm;
+  updateTermViewUI();
+  renderPage();
+}
+document.getElementById('activateKey').addEventListener('keypress', function(e){ if(e.key==='Enter') activateApp(); });
+</script>
+</body>
+</html>
